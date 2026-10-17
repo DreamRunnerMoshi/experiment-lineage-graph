@@ -1,0 +1,234 @@
+<!--
+  Experiment lineage graph: page fragment for the claude.ai Dashboard artifact type (files/index.html).
+  Needs two datasets: NODES (one row per experiment) and EDGES (parent -> child + the one change).
+  Edit only the CFG block below. Everything else is generic.
+  Plain HTML artifact instead of the Dashboard type: include standalone-shim.js (inline) BEFORE this script, a <title>,
+  the d3 v7 UMD script from cdnjs, and a small token block (see SKILL.md, "Plain artifact").
+-->
+<style>
+.lg { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); }
+.lg h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+.lg h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; text-wrap: balance; }
+.lg-card { position: relative; display: grid; gap: var(--cds-gap-sm); min-width: 0; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+.lg-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.45; max-width: 75ch; }
+.lg-wrap { overflow-x: auto; min-height: 20rem; }
+.lg-wrap svg { display: block; }
+.lg-wrap text { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); fill: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.lg-wrap .lg-node { cursor: pointer; }
+.lg-wrap .lg-node:focus { outline: none; }
+.lg-wrap .lg-node:focus-visible .lg-box { stroke-width: 3; }
+.lg-wrap text.lg-nid { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+.lg-wrap text.lg-nval { fill: var(--color-fg); font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-body); }
+.lg-wrap text.lg-lane { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+.lg-wrap text.lg-up { fill: var(--color-ok); }
+.lg-wrap text.lg-down { fill: var(--color-bad); }
+.lg-key { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.lg-key span { display: inline-flex; align-items: center; gap: 6px; }
+.lg-key svg { flex: none; }
+.lg-detail { display: grid; gap: var(--cds-gap-xs); border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-md); min-height: 7rem; }
+.lg-detail-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cds-gap-sm); }
+.lg-detail-h strong { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.lg-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--cds-gap-md); margin: 0; font-size: var(--cds-font-size-caption); }
+.lg-detail dt { color: var(--color-fg-muted); }
+.lg-detail dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.lg-pill { display: inline-block; border: 1px solid currentColor; border-radius: 999px; padding: 0 0.45rem; font-size: var(--cds-font-size-caption); line-height: 1.5; white-space: nowrap; color: var(--color-fg-muted); }
+.lg-pill[data-s="done"] { color: var(--color-ok); }
+.lg-pill[data-s="borderline"] { color: var(--color-warn); }
+.lg-pill[data-s="invalid"] { color: var(--color-bad); }
+.lg-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); max-width: 18rem; display: grid; gap: 2px; }
+.lg-tip .lg-tip-h { color: var(--cds-text-secondary); }
+.lg-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.lg-fail::before { content: ""; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--color-bad); }
+.lg [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="lg" id="lg">
+  <h1 id="lg-title">Experiment lineage</h1>
+  <section class="lg-card" id="lg-graph">
+    <h2>How the experiments connect</h2>
+    <p class="lg-note" id="lg-howto"></p>
+    <div class="lg-key" id="lg-key"></div>
+    <div class="lg-wrap" id="lg-chart" data-source="nodes lg_lineage lg_best"></div>
+    <div class="lg-detail" id="lg-detail" data-source="nodes"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ---------------- CFG: the only part to edit per project ----------------
+  const CFG = {
+    title: 'Experiment lineage',
+    nodes: 'nodes',             // dataset id of the node table (also rename it in the data-source attributes above)
+    edges: 'edges',             // dataset id of the edge table: from, to, change
+    metric: 'score',            // numeric column shown in each box and used for the deltas
+    metricLabel: 'MAP@3',
+    higherIsBetter: true,       // false for loss / error metrics: deltas colour and "best" flip
+    digits: 3,
+    lanes: null,                // stage values top to bottom, e.g. ['Baseline', 'Model', 'Data']; null = order of first appearance
+    laneNames: {},              // optional display names per stage value
+    bestOnlyFromLanes: null,    // e.g. ['Classifier on gold']; null = any lane
+    noBest: ['invalid', 'planned', 'idea'],   // statuses never marked best
+    detailFields: [['finding', 'Finding'], ['model', 'Model'], ['eval_set', 'Evaluated on'], ['date', 'Date'], ['folder', 'Folder']],
+    sizes: { nodeW: 104, nodeH: 52, colW: 156, laneH: 140, ml: 100, mt: 8 },
+  };
+  // -------------------------------------------------------------------------
+
+  const fmt = d3.format('.' + CFG.digits + 'f');
+  const num = (v) => (v === '' || v == null ? NaN : Number(v));
+  const BAD = ['error', 'missing', 'declined', 'connect'];
+  const better = (a, b) => (CFG.higherIsBetter ? a > b : a < b);
+  const STATUS = [['done', 'Done'], ['borderline', 'Borderline result'], ['invalid', 'Invalid run'], ['planned', 'Designed, not run'], ['idea', 'Idea, not designed']];
+  const stroke = (s) => ({ done: 'var(--color-ok)', borderline: 'var(--color-warn)', invalid: 'var(--color-bad)' }[s] || 'var(--cds-chart-axis)');
+  const dashOf = (s) => (s === 'planned' ? '6 4' : s === 'idea' ? '2 4' : null);
+  window.lgSel = window.lgSel || null;
+  document.getElementById('lg-title').textContent = CFG.title;
+  document.getElementById('lg-howto').textContent = 'Each box is an experiment, placed in the lane of the stage it tests. Arrows run from parent to child: the label above says what changed, the number below is the ' + CFG.metricLabel + ' change it caused. Click a box for its details; on a narrow screen, scroll the graph sideways.';
+
+  dash.calc('lg_best', {
+    inputs: [CFG.nodes], title: 'Best result',
+    description: 'Best ' + CFG.metricLabel + ' among valid experiments.',
+    fn: (nodes) => {
+      const ok = nodes.filter((d) => d[CFG.metric] !== '' && d[CFG.metric] != null && !CFG.noBest.includes(d.status)
+        && (!CFG.bestOnlyFromLanes || CFG.bestOnlyFromLanes.includes(d.stage)));
+      let b = null;
+      ok.forEach((d) => { if (!b || better(Number(d[CFG.metric]), Number(b[CFG.metric]))) b = d; });
+      return b ? [{ id: b.id, value: Number(b[CFG.metric]) }] : [];
+    },
+  });
+  dash.calc('lg_lineage', {
+    inputs: [CFG.edges, CFG.nodes], title: 'Change per step',
+    description: 'Each parent-to-child step with the ' + CFG.metricLabel + ' change, where both have a value.',
+    fn: (edges, nodes) => edges.map((e) => {
+      const a = nodes.find((d) => d.id === e.from), b = nodes.find((d) => d.id === e.to);
+      const ok = a && b && a[CFG.metric] !== '' && b[CFG.metric] !== '' && a[CFG.metric] != null && b[CFG.metric] != null;
+      return { from: e.from, to: e.to, change: e.change, delta: ok ? Number(b[CFG.metric]) - Number(a[CFG.metric]) : null };
+    }),
+  });
+
+  const failed = (el) => {
+    el.replaceChildren(); const f = document.createElement('div'); f.className = 'lg-fail'; f.textContent = 'Failed to load'; el.appendChild(f);
+  };
+  const state = (ids) => {
+    const st = ids.map((id) => dash.data(id).status);
+    if (st.some((s) => BAD.includes(s))) return 'bad';
+    return st.every((s) => s === 'ok') ? 'ok' : 'loading';
+  };
+  const tip = (card) => {
+    let t = card.querySelector(':scope > .lg-tip');
+    if (!t) { t = document.createElement('div'); t.className = 'lg-tip'; t.hidden = true; card.appendChild(t); }
+    return t;
+  };
+  const showTip = (card, evt, head, lines) => {
+    const t = tip(card); t.replaceChildren();
+    const h = document.createElement('div'); h.className = 'lg-tip-h'; h.textContent = head; t.appendChild(h);
+    lines.filter(Boolean).forEach((l) => { const d = document.createElement('div'); d.textContent = l; t.appendChild(d); });
+    t.hidden = false;
+    const r = card.getBoundingClientRect();
+    let x = evt.clientX - r.left + 14, y = evt.clientY - r.top + 14;
+    x = Math.max(8, Math.min(x, r.width - t.offsetWidth - 8));
+    if (y + t.offsetHeight > r.height - 8) y = evt.clientY - r.top - t.offsetHeight - 10;
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+  };
+  const hideTip = (card) => { tip(card).hidden = true; };
+
+  function drawKey() {
+    const el = document.getElementById('lg-key'); el.replaceChildren();
+    const present = new Set((dash.data(CFG.nodes).data || []).map((d) => d.status));
+    STATUS.filter(([s]) => present.size === 0 || present.has(s)).forEach(([s, name]) => {
+      const sp = document.createElement('span');
+      const svg = d3.select(sp).append('svg').attr('width', 22).attr('height', 14);
+      svg.append('rect').attr('x', 1.5).attr('y', 1.5).attr('width', 19).attr('height', 11).attr('rx', 3)
+        .attr('fill', 'var(--color-panel)').attr('stroke', stroke(s)).attr('stroke-width', 2).attr('stroke-dasharray', dashOf(s));
+      sp.append(name); el.appendChild(sp);
+    });
+  }
+
+  function drawDetail() {
+    const el = document.getElementById('lg-detail'), D = dash.data(CFG.nodes);
+    el.replaceChildren();
+    if (D.status !== 'ok') { if (BAD.includes(D.status)) failed(el); return; }
+    const d = D.data.find((x) => x.id === window.lgSel);
+    if (!d) { const p = document.createElement('p'); p.className = 'lg-note'; p.textContent = 'Click a box to see its details.'; el.appendChild(p); return; }
+    const h = document.createElement('div'); h.className = 'lg-detail-h';
+    const s = document.createElement('strong'); s.textContent = d.id + ' · ' + (d.title || '');
+    const p = document.createElement('span'); p.className = 'lg-pill'; p.dataset.s = d.status; p.textContent = d.status;
+    h.append(s, p); el.appendChild(h);
+    const dl = document.createElement('dl');
+    const rows = [[CFG.metricLabel, isNaN(num(d[CFG.metric])) ? 'not run yet' : fmt(num(d[CFG.metric]))]]
+      .concat(CFG.detailFields.filter(([k]) => k in d).map(([k, name]) => [name, d[k]]));
+    rows.forEach(([k, v]) => {
+      const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v == null ? '' : String(v);
+      dl.append(dt, dd);
+    });
+    el.appendChild(dl);
+  }
+
+  function drawGraph() {
+    const el = document.getElementById('lg-chart'), card = document.getElementById('lg-graph');
+    const s = state([CFG.nodes, 'lg_lineage', 'lg_best']);
+    el.replaceChildren();
+    if (s === 'bad') { el.classList.remove('dash-skeleton'); return failed(el); }
+    if (s !== 'ok') { el.classList.add('dash-skeleton'); return; }
+    el.classList.remove('dash-skeleton');
+    const ex = dash.data(CFG.nodes).data, edges = dash.data('lg_lineage').data, best = (dash.data('lg_best').data[0] || {}).id;
+    if (!window.lgSel) window.lgSel = best;
+    // depth = longest path from a root, so each step moves one column right
+    const depth = Object.fromEntries(ex.map((d) => [d.id, 0]));
+    for (let i = 0; i < ex.length; i++) edges.forEach((e) => { if (e.from in depth && e.to in depth) depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
+    const seen = []; ex.forEach((d) => { if (!seen.includes(d.stage)) seen.push(d.stage); });
+    const lanes = (CFG.lanes || seen).filter((l) => seen.includes(l));
+    const { nodeW, nodeH, colW, laneH, ml, mt } = CFG.sizes;
+    const maxD = d3.max(Object.values(depth)) || 0;
+    const W = Math.max(el.clientWidth, ml + (maxD + 1) * colW + 16), H = mt + lanes.length * laneH;
+    const pos = Object.fromEntries(ex.filter((d) => lanes.includes(d.stage)).map((d) => [d.id, {
+      x: ml + depth[d.id] * colW + colW / 2, y: mt + lanes.indexOf(d.stage) * laneH + laneH / 2, d }]));
+    const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', CFG.title + ' graph');
+    svg.append('defs').append('marker').attr('id', 'lg-arrow').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5)
+      .attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto-start-reverse')
+      .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--cds-chart-axis)');
+    lanes.forEach((l, i) => {
+      if (i % 2 === 0) svg.append('rect').attr('x', 0).attr('y', mt + i * laneH).attr('width', W).attr('height', laneH)
+        .attr('rx', 6).attr('fill', 'var(--cds-chart-grid)').attr('fill-opacity', 0.45);
+      svg.append('text').attr('class', 'lg-lane').attr('x', 10).attr('y', mt + i * laneH + 20).text(CFG.laneNames[l] || l);
+    });
+    const eg = svg.append('g');
+    edges.forEach((e) => {
+      const a = pos[e.from], b = pos[e.to]; if (!a || !b) return;
+      const x1 = a.x + nodeW / 2, y1 = a.y, x2 = b.x - nodeW / 2 - 2, y2 = b.y, same = y1 === y2;
+      const future = b.d.status === 'planned' || b.d.status === 'idea';
+      const path = same ? `M${x1},${y1} L${x2},${y2}` : `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
+      eg.append('path').attr('d', path).attr('fill', 'none').attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', future ? '4 4' : null).attr('marker-end', 'url(#lg-arrow)');
+      const mx = (x1 + x2) / 2;
+      if (e.change) {   // same-lane labels sit above the boxes, staggered so neighbours never touch
+        const ly = same ? y1 - nodeH / 2 - 10 - (depth[e.from] % 2) * 15 : (y1 + y2) / 2 - 8;
+        eg.append('text').attr('x', mx).attr('y', ly).attr('text-anchor', 'middle').text(e.change);
+      }
+      if (e.delta != null && e.delta !== '') {
+        const v = Number(e.delta), ly = same ? y1 + nodeH / 2 + 18 : (y1 + y2) / 2 + 12, good = CFG.higherIsBetter ? v >= 0 : v <= 0;
+        eg.append('text').attr('x', mx).attr('y', ly).attr('text-anchor', 'middle').attr('class', good ? 'lg-up' : 'lg-down')
+          .text((v >= 0 ? '+' : '−') + fmt(Math.abs(v)));
+      }
+    });
+    const ng = svg.append('g').selectAll('g').data(Object.values(pos)).join('g').attr('class', 'lg-node')
+      .attr('transform', (p) => `translate(${p.x - nodeW / 2},${p.y - nodeH / 2})`)
+      .attr('tabindex', 0).attr('role', 'button').attr('aria-label', (p) => p.d.id + ', ' + (p.d.title || '') + ', ' + p.d.status);
+    ng.append('rect').attr('class', 'lg-box').attr('width', nodeW).attr('height', nodeH).attr('rx', 8)
+      .attr('fill', 'var(--color-panel)').attr('stroke', (p) => stroke(p.d.status))
+      .attr('stroke-width', (p) => (p.d.id === window.lgSel ? 3 : 1.75)).attr('stroke-dasharray', (p) => dashOf(p.d.status));
+    ng.filter((p) => p.d.id === best).append('rect').attr('x', 0).attr('y', nodeH - 5).attr('width', nodeW).attr('height', 5)
+      .attr('rx', 2.5).attr('fill', dash.colors[0]);
+    ng.append('text').attr('class', 'lg-nid').attr('x', 10).attr('y', 19).text((p) => p.d.id + (p.d.id === best ? ' · best' : ''));
+    ng.append('text').attr('class', 'lg-nval').attr('x', 10).attr('y', 39)
+      .text((p) => (isNaN(num(p.d[CFG.metric])) ? ({ planned: 'designed', idea: 'idea' }[p.d.status] || '') : fmt(num(p.d[CFG.metric]))));
+    const pick = (p) => { window.lgSel = p.d.id; drawGraph(); drawDetail(); };
+    ng.on('click', (evt, p) => pick(p))
+      .on('keydown', (evt, p) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); pick(p); } })
+      .on('mousemove', (evt, p) => showTip(card, evt, p.d.id + ' · ' + p.d.status, [p.d.title, p.d.finding]))
+      .on('mouseleave', () => hideTip(card));
+  }
+
+  dash.onData(() => { drawKey(); drawGraph(); drawDetail(); });
+})();
+</script>

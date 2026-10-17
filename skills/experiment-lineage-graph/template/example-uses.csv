@@ -1,0 +1,10 @@
+experiment,entity
+EXP-001,M-a
+EXP-002,M-a
+EXP-002,T-fewshot
+EXP-003,M-a
+EXP-003,T-fewshot
+EXP-003,T-retrieval
+EXP-004,M-a
+EXP-004,T-retrieval
+EXP-004,T-clean

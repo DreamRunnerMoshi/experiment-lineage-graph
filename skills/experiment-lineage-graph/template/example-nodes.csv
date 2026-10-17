@@ -1,0 +1,6 @@
+id,stage,title,status,score,finding,model,date,folder
+EXP-001,Model,Zero-shot baseline,done,0.379,Recall on the negative class is low,Model A,2026-01-05,experiments/EXP-001_zero_shot
+EXP-002,Model,Few-shot examples,done,0.526,+0.15 from examples alone,Model A,2026-01-07,experiments/EXP-002_few_shot
+EXP-003,Model,Retrieved examples,borderline,0.541,Gain within noise (z 1.4),Model A,2026-01-09,experiments/EXP-003_retrieval
+EXP-004,Data,Clean the labels,planned,,Pass: +0.02 over EXP-003,Model A,2026-01-12,experiments/EXP-004_clean_labels
+EXP-005,Deploy,First submission,idea,,Needs EXP-004 first,,,

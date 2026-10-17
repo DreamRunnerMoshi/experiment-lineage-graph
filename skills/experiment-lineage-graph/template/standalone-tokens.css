@@ -1,0 +1,30 @@
+/* Tokens the template expects. The Dashboard type provides them; a plain HTML artifact must define them itself.
+   Light values on :root, dark values in the two dark blocks (system dark + explicit toggle). Adjust the palette per project. */
+:root {
+  --bg: #f6f7f9; --color-fg: #1d2330; --color-fg-muted: #5d6676; --color-panel: #ffffff; --color-border-line: #dde1e8;
+  --color-ok: #1f7a4d; --color-warn: #9a6400; --color-bad: #b3261e;
+  --lg-accent: #2f5bd3; --lg-accent-2: #8a5cc2;
+  --cds-chart-grid: #e7eaf0; --cds-chart-axis: #8b93a3; --cds-surface-popover: #ffffff; --cds-border: #d3d8e0;
+  --cds-shadow-popover: 0 6px 20px rgb(20 30 50 / 0.14); --cds-text-secondary: #5d6676;
+  --font-anthropic-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --cds-font-size-caption: 0.78rem; --cds-font-size-body: 0.95rem; --cds-font-size-heading: 1.05rem; --cds-font-size-title: 1.6rem;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 14px; --cds-gap-lg: 22px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 18px;
+  --cds-radius: 10px; --cds-dur-slow: 240ms;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151b; --color-fg: #e7eaf0; --color-fg-muted: #a0a8b6; --color-panel: #1a1e26; --color-border-line: #2c323d;
+  --color-ok: #5cc48d; --color-warn: #e0b04f; --color-bad: #f07b72; --lg-accent: #7d9cf0; --lg-accent-2: #b993e6;
+  --cds-chart-grid: #232833; --cds-chart-axis: #7a8291; --cds-surface-popover: #222733; --cds-border: #353c48;
+  --cds-shadow-popover: 0 6px 20px rgb(0 0 0 / 0.45); --cds-text-secondary: #a0a8b6; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #12151b; --color-fg: #e7eaf0; --color-fg-muted: #a0a8b6; --color-panel: #1a1e26; --color-border-line: #2c323d;
+  --color-ok: #5cc48d; --color-warn: #e0b04f; --color-bad: #f07b72; --lg-accent: #7d9cf0; --lg-accent-2: #b993e6;
+  --cds-chart-grid: #232833; --cds-chart-axis: #7a8291; --cds-surface-popover: #222733; --cds-border: #353c48;
+  --cds-shadow-popover: 0 6px 20px rgb(0 0 0 / 0.45); --cds-text-secondary: #a0a8b6; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--color-fg); padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }

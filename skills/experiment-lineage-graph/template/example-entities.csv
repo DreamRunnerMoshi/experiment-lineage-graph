@@ -1,0 +1,5 @@
+id,type,label,description
+T-fewshot,technique,Few-shot examples,Labelled examples shown in the prompt
+T-retrieval,technique,Retrieval,Examples picked by similarity
+T-clean,technique,Label cleaning,Relabel noisy training rows
+M-a,model,Model A,The base model used throughout

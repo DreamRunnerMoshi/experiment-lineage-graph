@@ -1,0 +1,12 @@
+{
+  "name": "dreamrunnermoshi",
+  "description": "Claude Code plugins by DreamRunnerMoshi",
+  "owner": { "name": "DreamRunnerMoshi", "url": "https://github.com/DreamRunnerMoshi" },
+  "plugins": [
+    {
+      "name": "experiment-lineage-graph",
+      "source": "./",
+      "description": "Interactive graph of a project's experiments: metrics, shared techniques and models, parent-to-child deltas."
+    }
+  ]
+}

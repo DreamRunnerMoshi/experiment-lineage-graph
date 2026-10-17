@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Experiment graph demo</title>
+<style>
+/* Tokens the template expects. The Dashboard type provides them; a plain HTML artifact must define them itself.
+   Light values on :root, dark values in the two dark blocks (system dark + explicit toggle). Adjust the palette per project. */
+:root {
+  --bg: #f6f7f9; --color-fg: #1d2330; --color-fg-muted: #5d6676; --color-panel: #ffffff; --color-border-line: #dde1e8;
+  --color-ok: #1f7a4d; --color-warn: #9a6400; --color-bad: #b3261e;
+  --lg-accent: #2f5bd3; --lg-accent-2: #8a5cc2;
+  --cds-chart-grid: #e7eaf0; --cds-chart-axis: #8b93a3; --cds-surface-popover: #ffffff; --cds-border: #d3d8e0;
+  --cds-shadow-popover: 0 6px 20px rgb(20 30 50 / 0.14); --cds-text-secondary: #5d6676;
+  --font-anthropic-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --cds-font-size-caption: 0.78rem; --cds-font-size-body: 0.95rem; --cds-font-size-heading: 1.05rem; --cds-font-size-title: 1.6rem;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 14px; --cds-gap-lg: 22px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 18px;
+  --cds-radius: 10px; --cds-dur-slow: 240ms;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151b; --color-fg: #e7eaf0; --color-fg-muted: #a0a8b6; --color-panel: #1a1e26; --color-border-line: #2c323d;
+  --color-ok: #5cc48d; --color-warn: #e0b04f; --color-bad: #f07b72; --lg-accent: #7d9cf0; --lg-accent-2: #b993e6;
+  --cds-chart-grid: #232833; --cds-chart-axis: #7a8291; --cds-surface-popover: #222733; --cds-border: #353c48;
+  --cds-shadow-popover: 0 6px 20px rgb(0 0 0 / 0.45); --cds-text-secondary: #a0a8b6; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #12151b; --color-fg: #e7eaf0; --color-fg-muted: #a0a8b6; --color-panel: #1a1e26; --color-border-line: #2c323d;
+  --color-ok: #5cc48d; --color-warn: #e0b04f; --color-bad: #f07b72; --lg-accent: #7d9cf0; --lg-accent-2: #b993e6;
+  --cds-chart-grid: #232833; --cds-chart-axis: #7a8291; --cds-surface-popover: #222733; --cds-border: #353c48;
+  --cds-shadow-popover: 0 6px 20px rgb(0 0 0 / 0.45); --cds-text-secondary: #a0a8b6; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--color-fg); padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+body { margin: 0; font-family: var(--font-anthropic-sans); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+</head>
+<body>
+<script>window.LG_DATA = {"nodes": [{"id": "EXP-001", "stage": "Model", "title": "Zero-shot baseline", "status": "done", "score": "0.379", "finding": "Recall on the negative class is low", "model": "Model A", "date": "2026-01-05", "folder": "experiments/EXP-001_zero_shot"}, {"id": "EXP-002", "stage": "Model", "title": "Few-shot examples", "status": "done", "score": "0.526", "finding": "+0.15 from examples alone", "model": "Model A", "date": "2026-01-07", "folder": "experiments/EXP-002_few_shot"}, {"id": "EXP-003", "stage": "Model", "title": "Retrieved examples", "status": "borderline", "score": "0.541", "finding": "Gain within noise (z 1.4)", "model": "Model A", "date": "2026-01-09", "folder": "experiments/EXP-003_retrieval"}, {"id": "EXP-004", "stage": "Data", "title": "Clean the labels", "status": "planned", "score": "", "finding": "Pass: +0.02 over EXP-003", "model": "Model A", "date": "2026-01-12", "folder": "experiments/EXP-004_clean_labels"}, {"id": "EXP-005", "stage": "Deploy", "title": "First submission", "status": "idea", "score": "", "finding": "Needs EXP-004 first", "model": "", "date": "", "folder": ""}], "edges": [{"from": "EXP-001", "to": "EXP-002", "change": "+ few-shot examples"}, {"from": "EXP-002", "to": "EXP-003", "change": "+ retrieval"}, {"from": "EXP-003", "to": "EXP-004", "change": "clean labels"}, {"from": "EXP-004", "to": "EXP-005", "change": ""}], "entities": [{"id": "T-fewshot", "type": "technique", "label": "Few-shot examples", "description": "Labelled examples shown in the prompt"}, {"id": "T-retrieval", "type": "technique", "label": "Retrieval", "description": "Examples picked by similarity"}, {"id": "T-clean", "type": "technique", "label": "Label cleaning", "description": "Relabel noisy training rows"}, {"id": "M-a", "type": "model", "label": "Model A", "description": "The base model used throughout"}], "uses": [{"experiment": "EXP-001", "entity": "M-a"}, {"experiment": "EXP-002", "entity": "M-a"}, {"experiment": "EXP-002", "entity": "T-fewshot"}, {"experiment": "EXP-003", "entity": "M-a"}, {"experiment": "EXP-003", "entity": "T-fewshot"}, {"experiment": "EXP-003", "entity": "T-retrieval"}, {"experiment": "EXP-004", "entity": "M-a"}, {"experiment": "EXP-004", "entity": "T-retrieval"}, {"experiment": "EXP-004", "entity": "T-clean"}]};</script>
+<script>
+// Minimal stand-in for the Dashboard type's `dash` API, so lineage-graph.html also runs in a plain HTML artifact.
+// Put the rows inline (window.LG_DATA = {nodes: [...], edges: [...]}) BEFORE this script; values may be strings or numbers.
+// Supports only what the template uses: data, onData, calc, colors.
+(() => {
+  const DATA = window.LG_DATA || {}, calcs = {}, subs = [];
+  const run = (id) => {
+    if (id in DATA) return DATA[id];
+    const c = calcs[id];
+    return c ? c.fn(...c.inputs.map(run)) : undefined;
+  };
+  window.dash = {
+    colors: ['var(--lg-accent)', 'var(--lg-accent-2)'],
+    data(id) {
+      try { const d = run(id); return d === undefined ? { status: 'missing', data: [] } : { status: 'ok', data: d }; }
+      catch (e) { return { status: 'error', data: [], message: String(e) }; }
+    },
+    calc(id, spec) { calcs[id] = spec; },
+    loader() {}, setLink() {}, params: () => ({}), setParams() {}, resetParams() {},
+    onData(fn) {
+      subs.push(fn);
+      const go = () => subs.forEach((f) => f());
+      fn();   // the template's script comes after its markup, so the elements already exist
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go, { once: true });   // re-measure widths
+      let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(go, 120); });
+    },
+  };
+})();
+
+</script>
+<style>
+.ng { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); }
+.ng h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; text-wrap: balance; }
+.ng-card { position: relative; display: grid; gap: var(--cds-gap-sm); min-width: 0; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+.ng-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.45; max-width: 75ch; }
+.ng-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ng-bar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--color-fg); }
+.ng-bar button { font: inherit; color: var(--color-fg); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 2px 10px; cursor: pointer; }
+.ng-bar button:hover { border-color: var(--cds-chart-axis); }
+.ng-bar button:focus-visible, .ng-bar input:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.ng-key { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ng-key span { display: inline-flex; align-items: center; gap: 6px; }
+.ng-key svg { flex: none; }
+.ng-chart { min-height: 30rem; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; touch-action: none; }
+.ng-chart svg { display: block; cursor: grab; }
+.ng-chart svg:active { cursor: grabbing; }
+.ng-chart text { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); fill: var(--color-fg); font-variant-numeric: tabular-nums; pointer-events: none; }
+.ng-chart text.ng-val { font-family: var(--font-anthropic-serif); }
+.ng-chart text.ng-muted { fill: var(--color-fg-muted); }
+.ng-chart text.ng-up { fill: var(--color-ok); }
+.ng-chart text.ng-down { fill: var(--color-bad); }
+.ng-chart text.ng-halo { paint-order: stroke; stroke: var(--color-panel); stroke-width: 4px; stroke-linejoin: round; }
+.ng-chart .ng-node { cursor: pointer; }
+.ng-chart .ng-node:focus { outline: none; }
+.ng-chart .ng-node:focus-visible .ng-shape { stroke-width: 4; }
+.ng-chart .ng-dim { opacity: 0.14; }
+.ng-chart line.ng-on { stroke: var(--color-fg); stroke-opacity: 1; stroke-width: 2.5px; }
+.ng-chart .ng-near .ng-shape { stroke-width: 3px; }
+.ng-chart .ng-picked .ng-shape { stroke-width: 4.5px; }
+.ng-detail { display: grid; gap: var(--cds-gap-xs); border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-md); min-height: 7rem; }
+.ng-detail-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cds-gap-sm); }
+.ng-detail-h strong { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.ng-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--cds-gap-md); margin: 0; font-size: var(--cds-font-size-caption); }
+.ng-detail dt { color: var(--color-fg-muted); }
+.ng-detail dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ng-pill { display: inline-block; border: 1px solid currentColor; border-radius: 999px; padding: 0 0.45rem; font-size: var(--cds-font-size-caption); line-height: 1.5; white-space: nowrap; color: var(--color-fg-muted); }
+.ng-pill[data-s="done"] { color: var(--color-ok); }
+.ng-pill[data-s="borderline"] { color: var(--color-warn); }
+.ng-pill[data-s="invalid"] { color: var(--color-bad); }
+.ng-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); max-width: 18rem; display: grid; gap: 2px; }
+.ng-tip .ng-tip-h { color: var(--cds-text-secondary); }
+.ng-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ng-fail::before { content: ""; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--color-bad); }
+.ng [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="ng" id="ng">
+  <section class="ng-card" id="ng-graph">
+    <h2 id="ng-title">How the experiments connect</h2>
+    <p class="ng-note" id="ng-howto"></p>
+    <div class="ng-bar">
+      <label for="ng-show-technique"><input type="checkbox" id="ng-show-technique" checked> Techniques</label>
+      <label for="ng-show-model"><input type="checkbox" id="ng-show-model" checked> Models</label>
+      <label for="ng-show-stage"><input type="checkbox" id="ng-show-stage"> Stages</label>
+      <button type="button" id="ng-fit">Fit to view</button>
+      <button type="button" id="ng-relayout">Re-arrange</button>
+    </div>
+    <div class="ng-key" id="ng-key"></div>
+    <div class="ng-chart" id="ng-chart" data-source="nodes edges entities uses ng_lineage ng_best"></div>
+    <div class="ng-detail" id="ng-detail" data-source="nodes entities"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ---------------- CFG: the only part to edit per project ----------------
+  const CFG = {
+    title: 'Example project: how the experiments connect',
+    nodes: 'nodes', edges: 'edges', entities: 'entities', uses: 'uses',   // dataset ids (entities/uses may be absent)
+    metric: 'score', metricLabel: 'MAP@3', higherIsBetter: true, digits: 3,
+    laneNames: {},              // display names for stage values (used by stage nodes and details)
+    bestOnlyFromStages: null,   // e.g. ['Classifier on gold']; null = any stage
+    noBest: ['invalid', 'planned', 'idea'],
+    entityTypes: { technique: 'Technique', model: 'Model' },   // ENTITIES.type values -> legend names
+    flow: 0.06,                 // 0-0.2: gentle left-to-right pull by lineage depth; 0 = free layout
+    height: 560,
+    detailFields: [['finding', 'Finding'], ['model', 'Model'], ['eval_set', 'Evaluated on'], ['date', 'Date'], ['folder', 'Folder']],
+  };
+  // -------------------------------------------------------------------------
+
+  const fmt = d3.format('.' + CFG.digits + 'f');
+  const num = (v) => (v === '' || v == null ? NaN : Number(v));
+  const BAD = ['error', 'missing', 'declined', 'connect'];
+  const better = (a, b) => (CFG.higherIsBetter ? a > b : a < b);
+  const STATUS = [['done', 'Done'], ['borderline', 'Borderline'], ['invalid', 'Invalid run'], ['planned', 'Designed, not run'], ['idea', 'Idea, not designed']];
+  const stroke = (s) => ({ done: 'var(--color-ok)', borderline: 'var(--color-warn)', invalid: 'var(--color-bad)' }[s] || 'var(--cds-chart-axis)');
+  const dashOf = (s) => (s === 'planned' ? '6 4' : s === 'idea' ? '2 4' : null);
+  const R = 24, tw = (s) => String(s).length * 6.4 + 20;           // circle radius; pill width estimate (no DOM measuring)
+  const S = window.ngState = window.ngState || { pos: {}, zoom: null, sel: null, show: { technique: true, model: true, stage: false } };
+  document.getElementById('ng-title').textContent = CFG.title;
+  document.getElementById('ng-howto').textContent = 'Circles are experiments (value = ' + CFG.metricLabel + '); arrows run from parent to child with the change in ' + CFG.metricLabel + '. Labelled boxes are the techniques and models experiments share, so related work clusters together. Hover to preview a node\'s connections; click to select it with all its connected nodes and links (click it again, an empty spot or press Esc to clear). Drag nodes; scroll or pinch to zoom.';
+  ['technique', 'model', 'stage'].forEach((k) => { document.getElementById('ng-show-' + k).checked = S.show[k]; });
+
+  dash.calc('ng_best', {
+    inputs: [CFG.nodes], title: 'Best result', description: 'Best ' + CFG.metricLabel + ' among valid experiments.',
+    fn: (nodes) => {
+      let b = null;
+      nodes.filter((d) => d[CFG.metric] !== '' && d[CFG.metric] != null && !CFG.noBest.includes(d.status)
+        && (!CFG.bestOnlyFromStages || CFG.bestOnlyFromStages.includes(d.stage)))
+        .forEach((d) => { if (!b || better(Number(d[CFG.metric]), Number(b[CFG.metric]))) b = d; });
+      return b ? [{ id: b.id, value: Number(b[CFG.metric]) }] : [];
+    },
+  });
+  dash.calc('ng_lineage', {
+    inputs: [CFG.edges, CFG.nodes], title: 'Change per step',
+    description: 'Each parent-to-child step with the ' + CFG.metricLabel + ' change, where both have a value.',
+    fn: (edges, nodes) => edges.map((e) => {
+      const a = nodes.find((d) => d.id === e.from), b = nodes.find((d) => d.id === e.to);
+      const ok = a && b && a[CFG.metric] !== '' && b[CFG.metric] !== '' && a[CFG.metric] != null && b[CFG.metric] != null;
+      return { from: e.from, to: e.to, change: e.change, delta: ok ? Number(b[CFG.metric]) - Number(a[CFG.metric]) : null };
+    }),
+  });
+
+  const failed = (el) => { el.replaceChildren(); const f = document.createElement('div'); f.className = 'ng-fail'; f.textContent = 'Failed to load'; el.appendChild(f); };
+  const optional = (id) => { const s = dash.data(id).status; return s === 'missing' ? 'ok' : s; };
+  const state = () => {
+    const st = [dash.data(CFG.nodes).status, optional(CFG.edges), optional(CFG.entities), optional(CFG.uses), dash.data('ng_lineage').status, dash.data('ng_best').status];
+    if (st.some((s) => BAD.includes(s))) return 'bad';
+    return st.every((s) => s === 'ok') ? 'ok' : 'loading';
+  };
+  const rows = (id) => (dash.data(id).status === 'ok' ? dash.data(id).data || [] : []);
+  const card = document.getElementById('ng-graph');
+  const tip = () => {
+    let t = card.querySelector(':scope > .ng-tip');
+    if (!t) { t = document.createElement('div'); t.className = 'ng-tip'; t.hidden = true; card.appendChild(t); }
+    return t;
+  };
+  const showTip = (evt, head, lines) => {
+    const t = tip(); t.replaceChildren();
+    const h = document.createElement('div'); h.className = 'ng-tip-h'; h.textContent = head; t.appendChild(h);
+    lines.filter(Boolean).forEach((l) => { const d = document.createElement('div'); d.textContent = l; t.appendChild(d); });
+    t.hidden = false;
+    const r = card.getBoundingClientRect();
+    let x = evt.clientX - r.left + 14, y = evt.clientY - r.top + 14;
+    x = Math.max(8, Math.min(x, r.width - t.offsetWidth - 8));
+    if (y + t.offsetHeight > r.height - 8) y = evt.clientY - r.top - t.offsetHeight - 10;
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+  };
+  const hideTip = () => { tip().hidden = true; };
+
+  function graphData() {
+    const ex = rows(CFG.nodes), lin = rows('ng_lineage'), ents = rows(CFG.entities), uses = rows(CFG.uses);
+    const ids = new Set(ex.map((d) => d.id));
+    const nodes = ex.map((d) => ({ id: d.id, kind: 'exp', d }));
+    ents.filter((e) => S.show[e.type] !== false && (e.type in S.show ? S.show[e.type] : true))
+      .forEach((e) => nodes.push({ id: e.id, kind: e.type, d: e }));
+    const stages = [...new Set(ex.map((d) => d.stage).filter(Boolean))];
+    if (S.show.stage) stages.forEach((s) => nodes.push({ id: 'stage:' + s, kind: 'stage', d: { id: 'stage:' + s, label: CFG.laneNames[s] || s, description: 'Pipeline stage' } }));
+    const have = new Set(nodes.map((n) => n.id));
+    const links = lin.filter((e) => ids.has(e.from) && ids.has(e.to)).map((e) => ({ source: e.from, target: e.to, kind: 'builds', e }));
+    uses.filter((u) => have.has(u.experiment) && have.has(u.entity)).forEach((u) => links.push({ source: u.experiment, target: u.entity, kind: 'uses' }));
+    if (S.show.stage) ex.filter((d) => d.stage).forEach((d) => links.push({ source: d.id, target: 'stage:' + d.stage, kind: 'stage' }));
+    const depth = Object.fromEntries(ex.map((d) => [d.id, 0]));
+    for (let i = 0; i < ex.length; i++) lin.forEach((e) => { if (e.from in depth && e.to in depth) depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
+    return { nodes, links, depth, maxD: d3.max(Object.values(depth)) || 1 };
+  }
+
+  function layout(G, W, H, fresh) {
+    G.nodes.forEach((n) => { const p = !fresh && S.pos[n.id]; if (p) { n.x = p.x; n.y = p.y; } });
+    const known = G.nodes.filter((n) => n.x != null).length;
+    const sim = d3.forceSimulation(G.nodes)
+      .force('link', d3.forceLink(G.links).id((n) => n.id)
+        .distance((l) => (l.kind === 'builds' ? 110 : 80)).strength((l) => (l.kind === 'builds' ? 0.7 : l.kind === 'stage' ? 0.08 : 0.22)))
+      .force('charge', d3.forceManyBody().strength((n) => (n.kind === 'exp' ? -520 : -220)))
+      .force('collide', d3.forceCollide((n) => (n.kind === 'exp' ? R + 14 : tw(n.d.label) / 2 + 6)))
+      .force('x', d3.forceX((n) => (n.kind === 'exp' ? (G.depth[n.id] / G.maxD - 0.5) * W * 0.8 : 0)).strength((n) => (n.kind === 'exp' ? CFG.flow : 0.01)))
+      .force('y', d3.forceY(0).strength(0.04))
+      .stop();
+    if (known === G.nodes.length) sim.alpha(0.05);
+    else if (known > 0) sim.alpha(0.4);
+    for (let i = 0, n = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay())); i < n; i++) sim.tick();
+    G.nodes.forEach((n) => { S.pos[n.id] = { x: n.x, y: n.y }; });
+  }
+
+  function drawKey() {
+    const el = document.getElementById('ng-key'); el.replaceChildren();
+    const present = new Set(rows(CFG.nodes).map((d) => d.status));
+    const item = (draw, name) => { const sp = document.createElement('span'); const svg = d3.select(sp).append('svg').attr('width', 26).attr('height', 16); draw(svg); sp.append(name); el.appendChild(sp); };
+    STATUS.filter(([s]) => present.has(s)).forEach(([s, name]) => item((svg) => svg.append('circle').attr('cx', 13).attr('cy', 8).attr('r', 6.5)
+      .attr('fill', 'var(--color-panel)').attr('stroke', stroke(s)).attr('stroke-width', 2).attr('stroke-dasharray', dashOf(s) ? '2 2' : null), name));
+    item((svg) => svg.append('circle').attr('cx', 13).attr('cy', 8).attr('r', 6.5).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 3), 'Best result');
+    const types = new Set(rows(CFG.entities).map((e) => e.type));
+    if (types.has('technique')) item((svg) => svg.append('rect').attr('x', 2).attr('y', 3).attr('width', 22).attr('height', 10).attr('rx', 5)
+      .attr('fill', 'var(--color-panel)').attr('stroke', dash.colors[1]).attr('stroke-width', 1.5), CFG.entityTypes.technique || 'Technique');
+    if (types.has('model')) item((svg) => svg.append('rect').attr('x', 2).attr('y', 3).attr('width', 22).attr('height', 10).attr('rx', 2)
+      .attr('fill', 'var(--color-panel)').attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1.5), CFG.entityTypes.model || 'Model');
+    item((svg) => svg.append('line').attr('x1', 2).attr('x2', 22).attr('y1', 8).attr('y2', 8).attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 2).attr('marker-end', 'url(#ng-arrow-key)'), 'Builds on');
+    item((svg) => svg.append('line').attr('x1', 2).attr('x2', 24).attr('y1', 8).attr('y2', 8).attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1).attr('stroke-dasharray', '3 3'), 'Uses');
+    const defs = el.querySelector('svg') && d3.select(el.querySelector('svg')).append('defs');
+    if (defs) defs.append('marker').attr('id', 'ng-arrow-key').attr('viewBox', '0 0 10 10').attr('refX', 8).attr('refY', 5).attr('markerWidth', 5).attr('markerHeight', 5)
+      .attr('orient', 'auto').append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--cds-chart-axis)');
+  }
+
+  function drawDetail() {
+    const el = document.getElementById('ng-detail'); el.replaceChildren();
+    if (dash.data(CFG.nodes).status !== 'ok') { if (BAD.includes(dash.data(CFG.nodes).status)) failed(el); return; }
+    const ex = rows(CFG.nodes), ents = rows(CFG.entities), uses = rows(CFG.uses);
+    const head = (title, pillText, s) => {
+      const h = document.createElement('div'); h.className = 'ng-detail-h';
+      const st = document.createElement('strong'); st.textContent = title;
+      const p = document.createElement('span'); p.className = 'ng-pill'; if (s) p.dataset.s = s; p.textContent = pillText;
+      h.append(st, p); el.appendChild(h);
+    };
+    const list = (pairs) => {
+      const dl = document.createElement('dl');
+      pairs.forEach(([k, v]) => { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v == null ? '' : String(v); dl.append(dt, dd); });
+      el.appendChild(dl);
+    };
+    const label = (id) => (ents.find((e) => e.id === id) || {}).label || id;
+    const d = ex.find((x) => x.id === S.sel);
+    if (d) {
+      head(d.id + ' · ' + (d.title || ''), d.status, d.status);
+      const used = uses.filter((u) => u.experiment === d.id).map((u) => label(u.entity));
+      list([[CFG.metricLabel, isNaN(num(d[CFG.metric])) ? 'not run yet' : fmt(num(d[CFG.metric]))], ['Stage', CFG.laneNames[d.stage] || d.stage]]
+        .concat(used.length ? [['Uses', used.join(', ')]] : [])
+        .concat(CFG.detailFields.filter(([k]) => k in d).map(([k, name]) => [name, d[k]])));
+      return;
+    }
+    const e = ents.find((x) => x.id === S.sel) || (String(S.sel).startsWith('stage:') ? { id: S.sel, type: 'stage', label: CFG.laneNames[S.sel.slice(6)] || S.sel.slice(6) } : null);
+    if (e) {
+      const by = e.type === 'stage' ? ex.filter((x) => 'stage:' + x.stage === e.id) : ex.filter((x) => uses.some((u) => u.entity === e.id && u.experiment === x.id));
+      head(e.label, CFG.entityTypes[e.type] || e.type);
+      list([['About', e.description || ''], ['Used by', by.map((x) => x.id + (isNaN(num(x[CFG.metric])) ? '' : ' (' + fmt(num(x[CFG.metric])) + ')')).join(', ') || 'none']]);
+      return;
+    }
+    const p = document.createElement('p'); p.className = 'ng-note'; p.textContent = 'Click a node to see its details.'; el.appendChild(p);
+  }
+
+  let svgSel = null, zoomB = null, lastFit = null;
+  function fit(G, W, H, animate) {
+    if (!svgSel || !G.nodes.length) return;
+    const xs = G.nodes.map((n) => n.x), ys = G.nodes.map((n) => n.y);
+    const x0 = d3.min(xs) - 70, x1 = d3.max(xs) + 70, y0 = d3.min(ys) - 50, y1 = d3.max(ys) + 60;
+    const k = Math.min(1.4, W / (x1 - x0), H / (y1 - y0));
+    const t = d3.zoomIdentity.translate(W / 2 - k * (x0 + x1) / 2, H / 2 - k * (y0 + y1) / 2).scale(k);
+    (animate ? svgSel.transition().duration(350) : svgSel).call(zoomB.transform, t);
+  }
+
+  function drawGraph(fresh) {
+    const el = document.getElementById('ng-chart'), s = state();
+    el.replaceChildren(); svgSel = null;
+    if (s === 'bad') { el.classList.remove('dash-skeleton'); return failed(el); }
+    if (s !== 'ok') { el.classList.add('dash-skeleton'); return; }
+    el.classList.remove('dash-skeleton');
+    const W = Math.max(280, el.clientWidth || 800), H = CFG.height;
+    const G = graphData(), best = (rows('ng_best')[0] || {}).id;
+    if (!S.sel) S.sel = best;
+    layout(G, W, H, fresh);
+    const nb = new Map(G.nodes.map((n) => [n.id, new Set([n.id])]));
+    G.links.forEach((l) => { nb.get(l.source.id).add(l.target.id); nb.get(l.target.id).add(l.source.id); });
+
+    const svg = svgSel = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', CFG.title);
+    svg.append('defs').append('marker').attr('id', 'ng-arrow').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5)
+      .attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto').append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--cds-chart-axis)');
+    const root = svg.append('g');
+    zoomB = d3.zoom().extent([[0, 0], [W, H]]).scaleExtent([0.3, 3]).on('zoom', (evt) => { root.attr('transform', evt.transform); S.zoom = evt.transform; });
+    svg.call(zoomB).on('dblclick.zoom', null);
+
+    const lg = root.append('g'), labG = root.append('g'), ng = root.append('g');
+    const end = (l) => {   // stop builds-on arrows at the target circle's edge
+      const dx = l.target.x - l.source.x, dy = l.target.y - l.source.y, len = Math.hypot(dx, dy) || 1, cut = l.kind === 'builds' ? R + 3 : 0;
+      return [l.target.x - dx / len * cut, l.target.y - dy / len * cut];
+    };
+    const linkSel = lg.selectAll('line').data(G.links).join('line')
+      .attr('stroke', 'var(--cds-chart-axis)')
+      .attr('stroke-width', (l) => (l.kind === 'builds' ? 2 : 1))
+      .attr('stroke-opacity', (l) => (l.kind === 'builds' ? 0.95 : 0.55))
+      .attr('stroke-dasharray', (l) => (l.kind === 'builds' ? (['planned', 'idea'].includes(l.target.d.status) ? '5 4' : null) : '3 3'))
+      .attr('marker-end', (l) => (l.kind === 'builds' ? 'url(#ng-arrow)' : null));
+    const hitSel = lg.selectAll('line.ng-hit').data(G.links.filter((l) => l.kind === 'builds')).join('line').attr('class', 'ng-hit')
+      .attr('stroke', 'transparent').attr('stroke-width', 14)
+      .on('mousemove', (evt, l) => showTip(evt, l.source.id + ' → ' + l.target.id, [l.e.change, l.e.delta == null ? '' : CFG.metricLabel + ' ' + (l.e.delta >= 0 ? '+' : '−') + fmt(Math.abs(l.e.delta))]))
+      .on('mouseleave', hideTip);
+    const deltaSel = labG.selectAll('text').data(G.links.filter((l) => l.kind === 'builds' && l.e.delta != null)).join('text')
+      .attr('class', (l) => 'ng-halo ' + ((CFG.higherIsBetter ? l.e.delta >= 0 : l.e.delta <= 0) ? 'ng-up' : 'ng-down'))
+      .attr('text-anchor', 'middle').attr('dy', '0.35em').text((l) => (l.e.delta >= 0 ? '+' : '−') + fmt(Math.abs(l.e.delta)));
+
+    const nodeSel = ng.selectAll('g').data(G.nodes, (n) => n.id).join('g').attr('class', 'ng-node')
+      .attr('tabindex', 0).attr('role', 'button')
+      .attr('aria-label', (n) => (n.kind === 'exp' ? n.d.id + ', ' + (n.d.title || '') + ', ' + n.d.status : n.d.label));
+    nodeSel.filter((n) => n.kind === 'exp').each(function (n) {
+      const g = d3.select(this);
+      if (n.id === best) g.append('circle').attr('r', R + 6).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 3);
+      g.append('circle').attr('class', 'ng-shape').attr('r', R).attr('fill', 'var(--color-panel)').attr('stroke', stroke(n.d.status))
+        .attr('stroke-width', 2.25).attr('stroke-dasharray', dashOf(n.d.status));
+      const v = num(n.d[CFG.metric]);
+      g.append('text').attr('class', 'ng-val').attr('text-anchor', 'middle').attr('dy', '0.35em')
+        .text(isNaN(v) ? ({ planned: 'plan', idea: 'idea' }[n.d.status] || '') : fmt(v));
+      g.append('text').attr('class', 'ng-halo').attr('text-anchor', 'middle').attr('y', R + 16).text(n.d.id);
+    });
+    nodeSel.filter((n) => n.kind !== 'exp').each(function (n) {
+      const g = d3.select(this), w = tw(n.d.label), h = 22;
+      g.append('rect').attr('class', 'ng-shape').attr('x', -w / 2).attr('y', -h / 2).attr('width', w).attr('height', h)
+        .attr('rx', n.kind === 'technique' ? h / 2 : n.kind === 'stage' ? 6 : 3)
+        .attr('fill', 'var(--color-panel)').attr('stroke', n.kind === 'technique' ? dash.colors[1] : 'var(--cds-chart-axis)')
+        .attr('stroke-width', 1.5).attr('stroke-dasharray', n.kind === 'stage' ? '4 3' : null);
+      g.append('text').attr('class', n.kind === 'model' ? 'ng-muted' : null).attr('text-anchor', 'middle').attr('dy', '0.35em').text(n.d.label);
+    });
+
+    const place = () => {
+      linkSel.attr('x1', (l) => l.source.x).attr('y1', (l) => l.source.y).attr('x2', (l) => end(l)[0]).attr('y2', (l) => end(l)[1]);
+      hitSel.attr('x1', (l) => l.source.x).attr('y1', (l) => l.source.y).attr('x2', (l) => l.target.x).attr('y2', (l) => l.target.y);
+      deltaSel.attr('x', (l) => (l.source.x + l.target.x) / 2).attr('y', (l) => (l.source.y + l.target.y) / 2);
+      nodeSel.attr('transform', (n) => `translate(${n.x},${n.y})`);
+    };
+    place();
+
+    // focus(id): keep id, its neighbours and the links that touch it; fade the rest. Hover previews, click pins (S.focus).
+    const focus = (id) => {
+      const keep = id && nb.has(id) ? nb.get(id) : null, touches = (l) => l.source.id === id || l.target.id === id;
+      nodeSel.classed('ng-dim', (n) => !!keep && !keep.has(n.id))
+        .classed('ng-near', (n) => !!keep && keep.has(n.id) && n.id !== id).classed('ng-picked', (n) => !!keep && n.id === id);
+      linkSel.classed('ng-dim', (l) => !!keep && !touches(l)).classed('ng-on', (l) => !!keep && touches(l));
+      deltaSel.classed('ng-dim', (l) => !!keep && !touches(l));
+    };
+    const pinned = () => focus(S.focus);
+    const pick = (n) => { S.focus = S.focus === n.id ? null : n.id; S.sel = n.id; drawDetail(); pinned(); };
+    svg.on('click.ng', (evt) => { if (evt.target === svg.node()) { S.focus = null; pinned(); } });
+    svg.on('keydown.ng', (evt) => { if (evt.key === 'Escape') { S.focus = null; pinned(); } });
+    nodeSel
+      .on('mouseenter', (evt, n) => focus(n.id))
+      .on('mousemove', (evt, n) => showTip(evt, n.kind === 'exp' ? n.d.id + ' · ' + n.d.status : (CFG.entityTypes[n.kind] || n.kind),
+        n.kind === 'exp' ? [n.d.title, n.d.finding] : [n.d.label, n.d.description, (nb.get(n.id).size - 1) + ' linked experiments']))
+      .on('mouseleave', () => { pinned(); hideTip(); })
+      .on('focus', (evt, n) => focus(n.id)).on('blur', pinned)
+      .on('click', (evt, n) => { evt.stopPropagation(); pick(n); })
+      .on('keydown', (evt, n) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); pick(n); } else if (evt.key === 'Escape') { S.focus = null; pinned(); } })
+      .call(d3.drag()
+        .on('drag', (evt, n) => { n.x = evt.x; n.y = evt.y; S.pos[n.id] = { x: n.x, y: n.y }; place(); hideTip(); }));
+
+    pinned();   // keep a pinned selection across redraws, toggles and drags
+    if (S.zoom && !fresh) svg.call(zoomB.transform, S.zoom); else fit(G, W, H, false);
+    lastFit = () => fit(G, W, H, true);
+  }
+
+  document.getElementById('ng-fit').addEventListener('click', () => { if (lastFit) lastFit(); });
+  document.getElementById('ng-relayout').addEventListener('click', () => { S.pos = {}; S.zoom = null; drawGraph(true); });
+  ['technique', 'model', 'stage'].forEach((k) => document.getElementById('ng-show-' + k).addEventListener('change', (evt) => {
+    S.show[k] = evt.target.checked; S.zoom = null; drawGraph(false);
+  }));
+
+  dash.onData(() => { drawKey(); drawGraph(false); drawDetail(); });
+})();
+</script>
+
+</body>
+</html>
