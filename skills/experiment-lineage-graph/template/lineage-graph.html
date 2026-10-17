@@ -20,8 +20,9 @@
 .lg-wrap text.lg-nid { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
 .lg-wrap text.lg-nval { fill: var(--color-fg); font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-body); }
 .lg-wrap text.lg-lane { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
-.lg-wrap text.lg-up { fill: var(--color-ok); }
-.lg-wrap text.lg-down { fill: var(--color-bad); }
+.lg-wrap text.lg-halo { paint-order: stroke; stroke: var(--color-panel); stroke-width: 4px; stroke-linejoin: round; }
+.lg-wrap .lg-up { fill: var(--color-ok); }
+.lg-wrap .lg-down { fill: var(--color-bad); }
 .lg-key { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
 .lg-key span { display: inline-flex; align-items: center; gap: 6px; }
 .lg-key svg { flex: none; }
@@ -82,7 +83,7 @@
   const dashOf = (s) => (s === 'planned' ? '6 4' : s === 'idea' ? '2 4' : null);
   window.lgSel = window.lgSel || null;
   document.getElementById('lg-title').textContent = CFG.title;
-  document.getElementById('lg-howto').textContent = 'Each box is an experiment, placed in the lane of the stage it tests. Arrows run from parent to child: the label above says what changed, the number below is the ' + CFG.metricLabel + ' change it caused. Click a box for its details; on a narrow screen, scroll the graph sideways.';
+  document.getElementById('lg-howto').textContent = 'Each box is an experiment, placed in the lane of the stage it tests. Arrows run from parent to child, labelled with what changed and the ' + CFG.metricLabel + ' change it caused. Click a box for its details; on a narrow screen, scroll the graph sideways.';
 
   dash.calc('lg_best', {
     inputs: [CFG.nodes], title: 'Best result',
@@ -178,21 +179,40 @@
     const seen = []; ex.forEach((d) => { if (!seen.includes(d.stage)) seen.push(d.stage); });
     const lanes = (CFG.lanes || seen).filter((l) => seen.includes(l));
     const { nodeW, nodeH, colW, laneH, ml, mt } = CFG.sizes;
-    const maxD = d3.max(Object.values(depth)) || 0;
-    const W = Math.max(el.clientWidth, ml + (maxD + 1) * colW + 16), H = mt + lanes.length * laneH;
-    const pos = Object.fromEntries(ex.filter((d) => lanes.includes(d.stage)).map((d) => [d.id, {
-      x: ml + depth[d.id] * colW + colW / 2, y: mt + lanes.indexOf(d.stage) * laneH + laneH / 2, d }]));
+    const maxD = d3.max(Object.values(depth)) || 0, rowGap = nodeH + 34;
+    // siblings at the same depth in the same lane stack into sub-rows; each lane grows to fit its tallest stack
+    const slot = {}, stack = {};
+    ex.filter((d) => lanes.includes(d.stage)).forEach((d) => {
+      const k = d.stage + '|' + depth[d.id]; stack[k] = stack[k] || []; slot[d.id] = stack[k].length; stack[k].push(d.id);
+    });
+    const rowsIn = (l) => d3.max(Object.keys(stack).filter((k) => k.startsWith(l + '|')).map((k) => stack[k].length)) || 1;
+    const laneHs = lanes.map((l) => laneH + (rowsIn(l) - 1) * rowGap);
+    const laneTop = laneHs.map((h, i) => mt + d3.sum(laneHs.slice(0, i)));
+    const W = Math.max(el.clientWidth, ml + (maxD + 1) * colW + 16), H = mt + d3.sum(laneHs);
+    const pos = Object.fromEntries(ex.filter((d) => lanes.includes(d.stage)).map((d) => {
+      const i = lanes.indexOf(d.stage), n = stack[d.stage + '|' + depth[d.id]].length;
+      return [d.id, { x: ml + depth[d.id] * colW + colW / 2, y: laneTop[i] + laneHs[i] / 2 + (slot[d.id] - (n - 1) / 2) * rowGap, d }];
+    }));
     const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
       .attr('role', 'img').attr('aria-label', CFG.title + ' graph');
     svg.append('defs').append('marker').attr('id', 'lg-arrow').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5)
       .attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto-start-reverse')
       .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--cds-chart-axis)');
     lanes.forEach((l, i) => {
-      if (i % 2 === 0) svg.append('rect').attr('x', 0).attr('y', mt + i * laneH).attr('width', W).attr('height', laneH)
+      if (i % 2 === 0) svg.append('rect').attr('x', 0).attr('y', laneTop[i]).attr('width', W).attr('height', laneHs[i])
         .attr('rx', 6).attr('fill', 'var(--cds-chart-grid)').attr('fill-opacity', 0.45);
-      svg.append('text').attr('class', 'lg-lane').attr('x', 10).attr('y', mt + i * laneH + 20).text(CFG.laneNames[l] || l);
+      svg.append('text').attr('class', 'lg-lane').attr('x', 10).attr('y', laneTop[i] + 20).text(CFG.laneNames[l] || l);
     });
-    const eg = svg.append('g');
+    const eg = svg.append('g'), labels = [];
+    // label placement: try candidate spots in order, take the first that misses every box and every placed label
+    const occupied = Object.values(pos).map((p) => ({ x0: p.x - nodeW / 2 - 4, x1: p.x + nodeW / 2 + 4, y0: p.y - nodeH / 2 - 4, y1: p.y + nodeH / 2 + 4 }));
+    const box = (c, w) => ({ x0: c.a === 'end' ? c.x - w : c.a === 'middle' ? c.x - w / 2 : c.x, x1: c.a === 'end' ? c.x : c.a === 'middle' ? c.x + w / 2 : c.x + w, y0: c.y - 12, y1: c.y + 4 });
+    const free = (b) => b.x0 >= 4 && b.x1 <= W - 4 && !occupied.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+    const placeLabel = (parts, cands) => {
+      const w = parts.map((p) => p.text).join('').length * 6.6 + 4;
+      const c = cands.find((k) => free(box(k, w))) || cands[0];
+      occupied.push(box(c, w)); labels.push({ c, parts });
+    };
     edges.forEach((e) => {
       const a = pos[e.from], b = pos[e.to]; if (!a || !b) return;
       const x1 = a.x + nodeW / 2, y1 = a.y, x2 = b.x - nodeW / 2 - 2, y2 = b.y, same = y1 === y2;
@@ -200,15 +220,17 @@
       const path = same ? `M${x1},${y1} L${x2},${y2}` : `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
       eg.append('path').attr('d', path).attr('fill', 'none').attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1.5)
         .attr('stroke-dasharray', future ? '4 4' : null).attr('marker-end', 'url(#lg-arrow)');
-      const mx = (x1 + x2) / 2;
-      if (e.change) {   // same-lane labels sit above the boxes, staggered so neighbours never touch
-        const ly = same ? y1 - nodeH / 2 - 10 - (depth[e.from] % 2) * 15 : (y1 + y2) / 2 - 8;
-        eg.append('text').attr('x', mx).attr('y', ly).attr('text-anchor', 'middle').text(e.change);
-      }
-      if (e.delta != null && e.delta !== '') {
-        const v = Number(e.delta), ly = same ? y1 + nodeH / 2 + 18 : (y1 + y2) / 2 + 12, good = CFG.higherIsBetter ? v >= 0 : v <= 0;
-        eg.append('text').attr('x', mx).attr('y', ly).attr('text-anchor', 'middle').attr('class', good ? 'lg-up' : 'lg-down')
-          .text((v >= 0 ? '+' : '−') + fmt(Math.abs(v)));
+      const mx = (x1 + x2) / 2, hasD = e.delta != null && e.delta !== '', v = Number(e.delta);
+      const good = CFG.higherIsBetter ? v >= 0 : v <= 0, dtxt = hasD ? (v >= 0 ? '+' : '−') + fmt(Math.abs(v)) : '';
+      const up = y1 - nodeH / 2 - 10, down = y1 + nodeH / 2 + 18, cls = good ? 'lg-up' : 'lg-down';
+      if (same) {   // same row: change above the boxes (two heights, so neighbours never touch), delta below
+        if (e.change) placeLabel([{ text: e.change }], [{ x: mx, y: up - (depth[e.from] % 2) * 15, a: 'middle' }, { x: mx, y: up - ((depth[e.from] + 1) % 2) * 15, a: 'middle' }, { x: mx, y: up - 30, a: 'middle' }]);
+        if (hasD) placeLabel([{ text: dtxt, cls }], [{ x: mx, y: down, a: 'middle' }, { x: mx, y: down + 15, a: 'middle' }]);
+      } else if (e.change || hasD) {   // another lane or row: one label "change +delta" at the first free spot near the arrow
+        const parts = (e.change ? [{ text: e.change + (hasD ? ' ' : '') }] : []).concat(hasD ? [{ text: dtxt, cls }] : []);
+        const t2 = y2 - nodeH / 2 - 8, b2 = y2 + nodeH / 2 + 16, t1 = y1 - nodeH / 2 - 8, b1 = y1 + nodeH / 2 + 16;
+        placeLabel(parts, [{ x: x2 + 2, y: t2, a: 'end' }, { x: mx, y: (y1 + y2) / 2 - 6, a: 'middle' }, { x: x2 + 2, y: b2, a: 'end' },
+          { x: x1 + 4, y: t1, a: 'start' }, { x: x1 + 4, y: b1, a: 'start' }, { x: x2 + 2, y: t2 - 15, a: 'end' }, { x: x2 + 2, y: b2 + 15, a: 'end' }]);
       }
     });
     const ng = svg.append('g').selectAll('g').data(Object.values(pos)).join('g').attr('class', 'lg-node')
@@ -222,6 +244,11 @@
     ng.append('text').attr('class', 'lg-nid').attr('x', 10).attr('y', 19).text((p) => p.d.id + (p.d.id === best ? ' · best' : ''));
     ng.append('text').attr('class', 'lg-nval').attr('x', 10).attr('y', 39)
       .text((p) => (isNaN(num(p.d[CFG.metric])) ? ({ planned: 'designed', idea: 'idea' }[p.d.status] || '') : fmt(num(p.d[CFG.metric]))));
+    const lab = svg.append('g').attr('pointer-events', 'none');
+    labels.forEach(({ c, parts }) => {
+      const t = lab.append('text').attr('class', 'lg-halo').attr('x', c.x).attr('y', c.y).attr('text-anchor', c.a);
+      parts.forEach((p) => t.append('tspan').attr('class', p.cls || null).text(p.text));
+    });
     const pick = (p) => { window.lgSel = p.d.id; drawGraph(); drawDetail(); };
     ng.on('click', (evt, p) => pick(p))
       .on('keydown', (evt, p) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); pick(p); } })

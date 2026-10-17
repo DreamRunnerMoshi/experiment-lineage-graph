@@ -25,7 +25,7 @@ const dangling = w.LG_DATA.edges.filter((e) => !ids.has(e.from) || !ids.has(e.to
 if (mode === 'lanes') {
   console.log('nodes drawn', q('#lg-chart .lg-node').length, 'of', ids.size, '| lanes:', q('#lg-chart text.lg-lane').map((t) => t.textContent).join(', '));
   console.log('labels:', q('#lg-chart text.lg-nid').map((t) => t.textContent).join(' | '));
-  console.log('deltas:', q('#lg-chart text.lg-up, #lg-chart text.lg-down').map((t) => t.textContent).join(' ') || '(none: check the metric column)');
+  console.log('deltas:', q('#lg-chart .lg-up, #lg-chart .lg-down').map((t) => t.textContent).join(' ') || '(none: check the metric column)');
   console.log('svg width', q('#lg-chart svg')[0]?.getAttribute('width'), '| dangling links:', dangling.join(', ') || 'none');
 } else {
   const P = Object.entries(w.ngState.pos);

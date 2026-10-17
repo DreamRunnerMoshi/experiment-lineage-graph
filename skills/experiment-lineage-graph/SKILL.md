@@ -66,6 +66,7 @@ One `.html` file, published with the Artifact tool (load the `artifact-design` g
 ```html
 <title>Project experiment graph</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:wght@400;600&display=swap">
 <style>/* contents of template/standalone-tokens.css */</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script>window.LG_DATA = { nodes: [/* rows */], edges: [/* rows */], entities: [/* rows */], uses: [/* rows */] };</script>

@@ -265,7 +265,7 @@
     zoomB = d3.zoom().extent([[0, 0], [W, H]]).scaleExtent([0.3, 3]).on('zoom', (evt) => { root.attr('transform', evt.transform); S.zoom = evt.transform; });
     svg.call(zoomB).on('dblclick.zoom', null);
 
-    const lg = root.append('g'), labG = root.append('g'), ng = root.append('g');
+    const lg = root.append('g'), ng = root.append('g'), labG = root.append('g').attr('pointer-events', 'none');   // deltas above nodes, so none hide
     const end = (l) => {   // stop builds-on arrows at the target circle's edge
       const dx = l.target.x - l.source.x, dy = l.target.y - l.source.y, len = Math.hypot(dx, dy) || 1, cut = l.kind === 'builds' ? R + 3 : 0;
       return [l.target.x - dx / len * cut, l.target.y - dy / len * cut];

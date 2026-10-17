@@ -1,6 +1,12 @@
-id,stage,title,status,score,finding,model,date,folder
-EXP-001,Model,Zero-shot baseline,done,0.379,Recall on the negative class is low,Model A,2026-01-05,experiments/EXP-001_zero_shot
-EXP-002,Model,Few-shot examples,done,0.526,+0.15 from examples alone,Model A,2026-01-07,experiments/EXP-002_few_shot
-EXP-003,Model,Retrieved examples,borderline,0.541,Gain within noise (z 1.4),Model A,2026-01-09,experiments/EXP-003_retrieval
-EXP-004,Data,Clean the labels,planned,,Pass: +0.02 over EXP-003,Model A,2026-01-12,experiments/EXP-004_clean_labels
-EXP-005,Deploy,First submission,idea,,Needs EXP-004 first,,,
+id,stage,title,status,score,finding,model,eval_set,date,folder
+EXP-01,Baseline,TF-IDF + logistic regression,done,0.712,Fast floor; weak on sarcasm,Linear model,2k held-out reviews,2026-03-02,experiments/EXP-01_tfidf
+EXP-02,Fine-tuning,Fine-tune a small encoder,done,0.801,+0.09 over the baseline,Small encoder,2k held-out reviews,2026-03-05,experiments/EXP-02_small_encoder
+EXP-03,Fine-tuning,+ back-translation augmentation,done,0.815,Helps rare classes most,Small encoder,2k held-out reviews,2026-03-08,experiments/EXP-03_augment
+EXP-04,Fine-tuning,Longer context (512 tokens),invalid,0.796,Truncation bug in the loader; rerun needed,Small encoder,2k held-out reviews,2026-03-09,experiments/EXP-04_long_context
+EXP-05,Fine-tuning,Swap to a large encoder,done,0.836,Best single model,Large encoder,2k held-out reviews,2026-03-12,experiments/EXP-05_large_encoder
+EXP-06,Fine-tuning,+ label smoothing,borderline,0.841,+0.005; within noise,Large encoder,2k held-out reviews,2026-03-14,experiments/EXP-06_label_smoothing
+EXP-07,LLM prompting,Zero-shot LLM,done,0.744,Good on neutral; poor calibration,LLM 8B,2k held-out reviews,2026-03-06,experiments/EXP-07_zero_shot
+EXP-08,LLM prompting,Few-shot LLM (8 retrieved examples),done,0.792,Retrieval beats random examples,LLM 8B,2k held-out reviews,2026-03-10,experiments/EXP-08_few_shot
+EXP-09,Ensemble,Ensemble encoder + few-shot LLM,done,0.853,Errors differ; +0.012 over the best single,Large encoder + LLM 8B,2k held-out reviews,2026-03-16,experiments/EXP-09_ensemble
+EXP-10,Fine-tuning,Distil LLM labels into the encoder,planned,,Pass: +0.01 over EXP-06,Large encoder,2k held-out reviews,2026-03-18,experiments/EXP-10_distill
+EXP-11,Ensemble,Clean noisy labels before the ensemble,idea,,Not designed yet,,,,

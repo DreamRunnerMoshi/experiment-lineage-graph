@@ -10,7 +10,23 @@ A Claude Code plugin with one skill. It turns a project's experiments into an in
 
 A second layout draws the same data left to right in one lane per pipeline stage, for strict timelines.
 
-Open [`examples/demo.html`](examples/demo.html) in a browser to try it on a small example project. It loads d3 from cdnjs.
+![Network layout: experiments with their Macro-F1, shared techniques and models, and parent-to-child deltas](docs/screenshots/network.png)
+
+Click a node to select it with everything it connects to. Here the best result, EXP-09, is selected: the parents it builds on, the ensembling technique and the two models it combines stay in focus.
+
+![EXP-09 selected with its connected nodes and links](docs/screenshots/network-selected.png)
+
+Techniques work the same way: selecting "Fine-tuning" shows every experiment that uses it and their scores. The page follows the viewer's light or dark theme.
+
+![Dark theme with the Fine-tuning technique selected](docs/screenshots/network-dark-technique.png)
+
+The lane layout puts each pipeline stage in its own lane; siblings stack, and every arrow says what changed and by how much.
+
+![Lane layout with one lane per pipeline stage](docs/screenshots/lanes.png)
+
+The example data in the screenshots is fictional.
+
+Open [`examples/demo.html`](examples/demo.html) (network) or [`examples/demo-lanes.html`](examples/demo-lanes.html) (lanes) in a browser to try it on the example project. They load d3 from cdnjs and fonts from Google Fonts.
 
 ## Install
 
@@ -59,6 +75,8 @@ skills/experiment-lineage-graph/
   template/test.cjs             headless check of either layout on your CSVs
   template/example-*.csv        example data
 examples/demo.html              the network layout on the example data
+examples/demo-lanes.html        the lane layout on the example data
+examples/build_demos.py         rebuilds both demos from the templates
 ```
 
 To check a layout on your own data without a browser (needs Node.js):
@@ -67,6 +85,11 @@ To check a layout on your own data without a browser (needs Node.js):
 npm i jsdom@24.1.3 d3@7.9.0
 node skills/experiment-lineage-graph/template/test.cjs network nodes.csv edges.csv entities.csv uses.csv score
 ```
+
+## Releasing a change
+
+Edit the templates, run `python3 examples/build_demos.py`, bump `version` in `.claude-plugin/plugin.json`, commit and push.
+Users then run `claude plugin update experiment-lineage-graph@dreamrunnermoshi`.
 
 ## Licence
 

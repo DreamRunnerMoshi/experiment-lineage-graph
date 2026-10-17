@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:wght@400;600&display=swap">
+<title>Experiment lanes demo</title>
+<style>
+/* Tokens the template expects. The Dashboard type provides them; a plain HTML artifact must define them itself.
+   Light values on :root, dark values in the two dark blocks (system dark + explicit toggle). Adjust the palette per project. */
+:root {
+  --bg: #f6f7f9; --color-fg: #1d2330; --color-fg-muted: #5d6676; --color-panel: #ffffff; --color-border-line: #dde1e8;
+  --color-ok: #1f7a4d; --color-warn: #9a6400; --color-bad: #b3261e;
+  --lg-accent: #2f5bd3; --lg-accent-2: #8a5cc2;
+  --cds-chart-grid: #e7eaf0; --cds-chart-axis: #8b93a3; --cds-surface-popover: #ffffff; --cds-border: #d3d8e0;
+  --cds-shadow-popover: 0 6px 20px rgb(20 30 50 / 0.14); --cds-text-secondary: #5d6676;
+  --font-anthropic-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --cds-font-size-caption: 0.78rem; --cds-font-size-body: 0.95rem; --cds-font-size-heading: 1.05rem; --cds-font-size-title: 1.6rem;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 14px; --cds-gap-lg: 22px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 18px;
+  --cds-radius: 10px; --cds-dur-slow: 240ms;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151b; --color-fg: #e7eaf0; --color-fg-muted: #a0a8b6; --color-panel: #1a1e26; --color-border-line: #2c323d;
+  --color-ok: #5cc48d; --color-warn: #e0b04f; --color-bad: #f07b72; --lg-accent: #7d9cf0; --lg-accent-2: #b993e6;
+  --cds-chart-grid: #232833; --cds-chart-axis: #7a8291; --cds-surface-popover: #222733; --cds-border: #353c48;
+  --cds-shadow-popover: 0 6px 20px rgb(0 0 0 / 0.45); --cds-text-secondary: #a0a8b6; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #12151b; --color-fg: #e7eaf0; --color-fg-muted: #a0a8b6; --color-panel: #1a1e26; --color-border-line: #2c323d;
+  --color-ok: #5cc48d; --color-warn: #e0b04f; --color-bad: #f07b72; --lg-accent: #7d9cf0; --lg-accent-2: #b993e6;
+  --cds-chart-grid: #232833; --cds-chart-axis: #7a8291; --cds-surface-popover: #222733; --cds-border: #353c48;
+  --cds-shadow-popover: 0 6px 20px rgb(0 0 0 / 0.45); --cds-text-secondary: #a0a8b6; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--color-fg); padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+body { margin: 0; font-family: var(--font-anthropic-sans); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+</head>
+<body>
+<script>window.LG_DATA = {"nodes": [{"id": "EXP-01", "stage": "Baseline", "title": "TF-IDF + logistic regression", "status": "done", "score": "0.712", "finding": "Fast floor; weak on sarcasm", "model": "Linear model", "eval_set": "2k held-out reviews", "date": "2026-03-02", "folder": "experiments/EXP-01_tfidf"}, {"id": "EXP-02", "stage": "Fine-tuning", "title": "Fine-tune a small encoder", "status": "done", "score": "0.801", "finding": "+0.09 over the baseline", "model": "Small encoder", "eval_set": "2k held-out reviews", "date": "2026-03-05", "folder": "experiments/EXP-02_small_encoder"}, {"id": "EXP-03", "stage": "Fine-tuning", "title": "+ back-translation augmentation", "status": "done", "score": "0.815", "finding": "Helps rare classes most", "model": "Small encoder", "eval_set": "2k held-out reviews", "date": "2026-03-08", "folder": "experiments/EXP-03_augment"}, {"id": "EXP-04", "stage": "Fine-tuning", "title": "Longer context (512 tokens)", "status": "invalid", "score": "0.796", "finding": "Truncation bug in the loader; rerun needed", "model": "Small encoder", "eval_set": "2k held-out reviews", "date": "2026-03-09", "folder": "experiments/EXP-04_long_context"}, {"id": "EXP-05", "stage": "Fine-tuning", "title": "Swap to a large encoder", "status": "done", "score": "0.836", "finding": "Best single model", "model": "Large encoder", "eval_set": "2k held-out reviews", "date": "2026-03-12", "folder": "experiments/EXP-05_large_encoder"}, {"id": "EXP-06", "stage": "Fine-tuning", "title": "+ label smoothing", "status": "borderline", "score": "0.841", "finding": "+0.005; within noise", "model": "Large encoder", "eval_set": "2k held-out reviews", "date": "2026-03-14", "folder": "experiments/EXP-06_label_smoothing"}, {"id": "EXP-07", "stage": "LLM prompting", "title": "Zero-shot LLM", "status": "done", "score": "0.744", "finding": "Good on neutral; poor calibration", "model": "LLM 8B", "eval_set": "2k held-out reviews", "date": "2026-03-06", "folder": "experiments/EXP-07_zero_shot"}, {"id": "EXP-08", "stage": "LLM prompting", "title": "Few-shot LLM (8 retrieved examples)", "status": "done", "score": "0.792", "finding": "Retrieval beats random examples", "model": "LLM 8B", "eval_set": "2k held-out reviews", "date": "2026-03-10", "folder": "experiments/EXP-08_few_shot"}, {"id": "EXP-09", "stage": "Ensemble", "title": "Ensemble encoder + few-shot LLM", "status": "done", "score": "0.853", "finding": "Errors differ; +0.012 over the best single", "model": "Large encoder + LLM 8B", "eval_set": "2k held-out reviews", "date": "2026-03-16", "folder": "experiments/EXP-09_ensemble"}, {"id": "EXP-10", "stage": "Fine-tuning", "title": "Distil LLM labels into the encoder", "status": "planned", "score": "", "finding": "Pass: +0.01 over EXP-06", "model": "Large encoder", "eval_set": "2k held-out reviews", "date": "2026-03-18", "folder": "experiments/EXP-10_distill"}, {"id": "EXP-11", "stage": "Ensemble", "title": "Clean noisy labels before the ensemble", "status": "idea", "score": "", "finding": "Not designed yet", "model": "", "eval_set": "", "date": "", "folder": ""}], "edges": [{"from": "EXP-01", "to": "EXP-02", "change": "fine-tune an encoder"}, {"from": "EXP-02", "to": "EXP-03", "change": "+ augmentation"}, {"from": "EXP-03", "to": "EXP-04", "change": "longer context"}, {"from": "EXP-03", "to": "EXP-05", "change": "larger encoder"}, {"from": "EXP-05", "to": "EXP-06", "change": "+ label smoothing"}, {"from": "EXP-01", "to": "EXP-07", "change": "zero-shot LLM"}, {"from": "EXP-07", "to": "EXP-08", "change": "+ few-shot examples"}, {"from": "EXP-06", "to": "EXP-09", "change": "ensemble"}, {"from": "EXP-08", "to": "EXP-09", "change": ""}, {"from": "EXP-06", "to": "EXP-10", "change": "distil LLM labels"}, {"from": "EXP-09", "to": "EXP-11", "change": "clean labels"}]};</script>
+<script>
+// Minimal stand-in for the Dashboard type's `dash` API, so lineage-graph.html also runs in a plain HTML artifact.
+// Put the rows inline (window.LG_DATA = {nodes: [...], edges: [...]}) BEFORE this script; values may be strings or numbers.
+// Supports only what the template uses: data, onData, calc, colors.
+(() => {
+  const DATA = window.LG_DATA || {}, calcs = {}, subs = [];
+  const run = (id) => {
+    if (id in DATA) return DATA[id];
+    const c = calcs[id];
+    return c ? c.fn(...c.inputs.map(run)) : undefined;
+  };
+  window.dash = {
+    colors: ['var(--lg-accent)', 'var(--lg-accent-2)'],
+    data(id) {
+      try { const d = run(id); return d === undefined ? { status: 'missing', data: [] } : { status: 'ok', data: d }; }
+      catch (e) { return { status: 'error', data: [], message: String(e) }; }
+    },
+    calc(id, spec) { calcs[id] = spec; },
+    loader() {}, setLink() {}, params: () => ({}), setParams() {}, resetParams() {},
+    onData(fn) {
+      subs.push(fn);
+      const go = () => subs.forEach((f) => f());
+      fn();   // the template's script comes after its markup, so the elements already exist
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go, { once: true });   // re-measure widths
+      let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(go, 120); });
+    },
+  };
+})();
+
+</script>
+<style>
+.lg { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); }
+.lg h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+.lg h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; text-wrap: balance; }
+.lg-card { position: relative; display: grid; gap: var(--cds-gap-sm); min-width: 0; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+.lg-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.45; max-width: 75ch; }
+.lg-wrap { overflow-x: auto; min-height: 20rem; }
+.lg-wrap svg { display: block; }
+.lg-wrap text { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); fill: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.lg-wrap .lg-node { cursor: pointer; }
+.lg-wrap .lg-node:focus { outline: none; }
+.lg-wrap .lg-node:focus-visible .lg-box { stroke-width: 3; }
+.lg-wrap text.lg-nid { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+.lg-wrap text.lg-nval { fill: var(--color-fg); font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-body); }
+.lg-wrap text.lg-lane { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+.lg-wrap text.lg-halo { paint-order: stroke; stroke: var(--color-panel); stroke-width: 4px; stroke-linejoin: round; }
+.lg-wrap .lg-up { fill: var(--color-ok); }
+.lg-wrap .lg-down { fill: var(--color-bad); }
+.lg-key { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.lg-key span { display: inline-flex; align-items: center; gap: 6px; }
+.lg-key svg { flex: none; }
+.lg-detail { display: grid; gap: var(--cds-gap-xs); border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-md); min-height: 7rem; }
+.lg-detail-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cds-gap-sm); }
+.lg-detail-h strong { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.lg-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--cds-gap-md); margin: 0; font-size: var(--cds-font-size-caption); }
+.lg-detail dt { color: var(--color-fg-muted); }
+.lg-detail dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.lg-pill { display: inline-block; border: 1px solid currentColor; border-radius: 999px; padding: 0 0.45rem; font-size: var(--cds-font-size-caption); line-height: 1.5; white-space: nowrap; color: var(--color-fg-muted); }
+.lg-pill[data-s="done"] { color: var(--color-ok); }
+.lg-pill[data-s="borderline"] { color: var(--color-warn); }
+.lg-pill[data-s="invalid"] { color: var(--color-bad); }
+.lg-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); max-width: 18rem; display: grid; gap: 2px; }
+.lg-tip .lg-tip-h { color: var(--cds-text-secondary); }
+.lg-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.lg-fail::before { content: ""; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--color-bad); }
+.lg [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="lg" id="lg">
+  <h1 id="lg-title">Experiment lineage</h1>
+  <section class="lg-card" id="lg-graph">
+    <h2>How the experiments connect</h2>
+    <p class="lg-note" id="lg-howto"></p>
+    <div class="lg-key" id="lg-key"></div>
+    <div class="lg-wrap" id="lg-chart" data-source="nodes lg_lineage lg_best"></div>
+    <div class="lg-detail" id="lg-detail" data-source="nodes"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ---------------- CFG: the only part to edit per project ----------------
+  const CFG = {
+    title: 'Example project (fictional): sentiment classifier lineage',
+    nodes: 'nodes',             // dataset id of the node table (also rename it in the data-source attributes above)
+    edges: 'edges',             // dataset id of the edge table: from, to, change
+    metric: 'score',            // numeric column shown in each box and used for the deltas
+    metricLabel: 'Macro-F1',
+    higherIsBetter: true,       // false for loss / error metrics: deltas colour and "best" flip
+    digits: 3,
+    lanes: ['Baseline', 'LLM prompting', 'Fine-tuning', 'Ensemble'],                // stage values top to bottom, e.g. ['Baseline', 'Model', 'Data']; null = order of first appearance
+    laneNames: {},              // optional display names per stage value
+    bestOnlyFromLanes: null,    // e.g. ['Classifier on gold']; null = any lane
+    noBest: ['invalid', 'planned', 'idea'],   // statuses never marked best
+    detailFields: [['finding', 'Finding'], ['model', 'Model'], ['eval_set', 'Evaluated on'], ['date', 'Date'], ['folder', 'Folder']],
+    sizes: { nodeW: 104, nodeH: 52, colW: 156, laneH: 140, ml: 100, mt: 8 },
+  };
+  // -------------------------------------------------------------------------
+
+  const fmt = d3.format('.' + CFG.digits + 'f');
+  const num = (v) => (v === '' || v == null ? NaN : Number(v));
+  const BAD = ['error', 'missing', 'declined', 'connect'];
+  const better = (a, b) => (CFG.higherIsBetter ? a > b : a < b);
+  const STATUS = [['done', 'Done'], ['borderline', 'Borderline result'], ['invalid', 'Invalid run'], ['planned', 'Designed, not run'], ['idea', 'Idea, not designed']];
+  const stroke = (s) => ({ done: 'var(--color-ok)', borderline: 'var(--color-warn)', invalid: 'var(--color-bad)' }[s] || 'var(--cds-chart-axis)');
+  const dashOf = (s) => (s === 'planned' ? '6 4' : s === 'idea' ? '2 4' : null);
+  window.lgSel = window.lgSel || null;
+  document.getElementById('lg-title').textContent = CFG.title;
+  document.getElementById('lg-howto').textContent = 'Each box is an experiment, placed in the lane of the stage it tests. Arrows run from parent to child, labelled with what changed and the ' + CFG.metricLabel + ' change it caused. Click a box for its details; on a narrow screen, scroll the graph sideways.';
+
+  dash.calc('lg_best', {
+    inputs: [CFG.nodes], title: 'Best result',
+    description: 'Best ' + CFG.metricLabel + ' among valid experiments.',
+    fn: (nodes) => {
+      const ok = nodes.filter((d) => d[CFG.metric] !== '' && d[CFG.metric] != null && !CFG.noBest.includes(d.status)
+        && (!CFG.bestOnlyFromLanes || CFG.bestOnlyFromLanes.includes(d.stage)));
+      let b = null;
+      ok.forEach((d) => { if (!b || better(Number(d[CFG.metric]), Number(b[CFG.metric]))) b = d; });
+      return b ? [{ id: b.id, value: Number(b[CFG.metric]) }] : [];
+    },
+  });
+  dash.calc('lg_lineage', {
+    inputs: [CFG.edges, CFG.nodes], title: 'Change per step',
+    description: 'Each parent-to-child step with the ' + CFG.metricLabel + ' change, where both have a value.',
+    fn: (edges, nodes) => edges.map((e) => {
+      const a = nodes.find((d) => d.id === e.from), b = nodes.find((d) => d.id === e.to);
+      const ok = a && b && a[CFG.metric] !== '' && b[CFG.metric] !== '' && a[CFG.metric] != null && b[CFG.metric] != null;
+      return { from: e.from, to: e.to, change: e.change, delta: ok ? Number(b[CFG.metric]) - Number(a[CFG.metric]) : null };
+    }),
+  });
+
+  const failed = (el) => {
+    el.replaceChildren(); const f = document.createElement('div'); f.className = 'lg-fail'; f.textContent = 'Failed to load'; el.appendChild(f);
+  };
+  const state = (ids) => {
+    const st = ids.map((id) => dash.data(id).status);
+    if (st.some((s) => BAD.includes(s))) return 'bad';
+    return st.every((s) => s === 'ok') ? 'ok' : 'loading';
+  };
+  const tip = (card) => {
+    let t = card.querySelector(':scope > .lg-tip');
+    if (!t) { t = document.createElement('div'); t.className = 'lg-tip'; t.hidden = true; card.appendChild(t); }
+    return t;
+  };
+  const showTip = (card, evt, head, lines) => {
+    const t = tip(card); t.replaceChildren();
+    const h = document.createElement('div'); h.className = 'lg-tip-h'; h.textContent = head; t.appendChild(h);
+    lines.filter(Boolean).forEach((l) => { const d = document.createElement('div'); d.textContent = l; t.appendChild(d); });
+    t.hidden = false;
+    const r = card.getBoundingClientRect();
+    let x = evt.clientX - r.left + 14, y = evt.clientY - r.top + 14;
+    x = Math.max(8, Math.min(x, r.width - t.offsetWidth - 8));
+    if (y + t.offsetHeight > r.height - 8) y = evt.clientY - r.top - t.offsetHeight - 10;
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+  };
+  const hideTip = (card) => { tip(card).hidden = true; };
+
+  function drawKey() {
+    const el = document.getElementById('lg-key'); el.replaceChildren();
+    const present = new Set((dash.data(CFG.nodes).data || []).map((d) => d.status));
+    STATUS.filter(([s]) => present.size === 0 || present.has(s)).forEach(([s, name]) => {
+      const sp = document.createElement('span');
+      const svg = d3.select(sp).append('svg').attr('width', 22).attr('height', 14);
+      svg.append('rect').attr('x', 1.5).attr('y', 1.5).attr('width', 19).attr('height', 11).attr('rx', 3)
+        .attr('fill', 'var(--color-panel)').attr('stroke', stroke(s)).attr('stroke-width', 2).attr('stroke-dasharray', dashOf(s));
+      sp.append(name); el.appendChild(sp);
+    });
+  }
+
+  function drawDetail() {
+    const el = document.getElementById('lg-detail'), D = dash.data(CFG.nodes);
+    el.replaceChildren();
+    if (D.status !== 'ok') { if (BAD.includes(D.status)) failed(el); return; }
+    const d = D.data.find((x) => x.id === window.lgSel);
+    if (!d) { const p = document.createElement('p'); p.className = 'lg-note'; p.textContent = 'Click a box to see its details.'; el.appendChild(p); return; }
+    const h = document.createElement('div'); h.className = 'lg-detail-h';
+    const s = document.createElement('strong'); s.textContent = d.id + ' · ' + (d.title || '');
+    const p = document.createElement('span'); p.className = 'lg-pill'; p.dataset.s = d.status; p.textContent = d.status;
+    h.append(s, p); el.appendChild(h);
+    const dl = document.createElement('dl');
+    const rows = [[CFG.metricLabel, isNaN(num(d[CFG.metric])) ? 'not run yet' : fmt(num(d[CFG.metric]))]]
+      .concat(CFG.detailFields.filter(([k]) => k in d).map(([k, name]) => [name, d[k]]));
+    rows.forEach(([k, v]) => {
+      const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v == null ? '' : String(v);
+      dl.append(dt, dd);
+    });
+    el.appendChild(dl);
+  }
+
+  function drawGraph() {
+    const el = document.getElementById('lg-chart'), card = document.getElementById('lg-graph');
+    const s = state([CFG.nodes, 'lg_lineage', 'lg_best']);
+    el.replaceChildren();
+    if (s === 'bad') { el.classList.remove('dash-skeleton'); return failed(el); }
+    if (s !== 'ok') { el.classList.add('dash-skeleton'); return; }
+    el.classList.remove('dash-skeleton');
+    const ex = dash.data(CFG.nodes).data, edges = dash.data('lg_lineage').data, best = (dash.data('lg_best').data[0] || {}).id;
+    if (!window.lgSel) window.lgSel = best;
+    // depth = longest path from a root, so each step moves one column right
+    const depth = Object.fromEntries(ex.map((d) => [d.id, 0]));
+    for (let i = 0; i < ex.length; i++) edges.forEach((e) => { if (e.from in depth && e.to in depth) depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
+    const seen = []; ex.forEach((d) => { if (!seen.includes(d.stage)) seen.push(d.stage); });
+    const lanes = (CFG.lanes || seen).filter((l) => seen.includes(l));
+    const { nodeW, nodeH, colW, laneH, ml, mt } = CFG.sizes;
+    const maxD = d3.max(Object.values(depth)) || 0, rowGap = nodeH + 34;
+    // siblings at the same depth in the same lane stack into sub-rows; each lane grows to fit its tallest stack
+    const slot = {}, stack = {};
+    ex.filter((d) => lanes.includes(d.stage)).forEach((d) => {
+      const k = d.stage + '|' + depth[d.id]; stack[k] = stack[k] || []; slot[d.id] = stack[k].length; stack[k].push(d.id);
+    });
+    const rowsIn = (l) => d3.max(Object.keys(stack).filter((k) => k.startsWith(l + '|')).map((k) => stack[k].length)) || 1;
+    const laneHs = lanes.map((l) => laneH + (rowsIn(l) - 1) * rowGap);
+    const laneTop = laneHs.map((h, i) => mt + d3.sum(laneHs.slice(0, i)));
+    const W = Math.max(el.clientWidth, ml + (maxD + 1) * colW + 16), H = mt + d3.sum(laneHs);
+    const pos = Object.fromEntries(ex.filter((d) => lanes.includes(d.stage)).map((d) => {
+      const i = lanes.indexOf(d.stage), n = stack[d.stage + '|' + depth[d.id]].length;
+      return [d.id, { x: ml + depth[d.id] * colW + colW / 2, y: laneTop[i] + laneHs[i] / 2 + (slot[d.id] - (n - 1) / 2) * rowGap, d }];
+    }));
+    const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('role', 'img').attr('aria-label', CFG.title + ' graph');
+    svg.append('defs').append('marker').attr('id', 'lg-arrow').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5)
+      .attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto-start-reverse')
+      .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', 'var(--cds-chart-axis)');
+    lanes.forEach((l, i) => {
+      if (i % 2 === 0) svg.append('rect').attr('x', 0).attr('y', laneTop[i]).attr('width', W).attr('height', laneHs[i])
+        .attr('rx', 6).attr('fill', 'var(--cds-chart-grid)').attr('fill-opacity', 0.45);
+      svg.append('text').attr('class', 'lg-lane').attr('x', 10).attr('y', laneTop[i] + 20).text(CFG.laneNames[l] || l);
+    });
+    const eg = svg.append('g'), labels = [];
+    // label placement: try candidate spots in order, take the first that misses every box and every placed label
+    const occupied = Object.values(pos).map((p) => ({ x0: p.x - nodeW / 2 - 4, x1: p.x + nodeW / 2 + 4, y0: p.y - nodeH / 2 - 4, y1: p.y + nodeH / 2 + 4 }));
+    const box = (c, w) => ({ x0: c.a === 'end' ? c.x - w : c.a === 'middle' ? c.x - w / 2 : c.x, x1: c.a === 'end' ? c.x : c.a === 'middle' ? c.x + w / 2 : c.x + w, y0: c.y - 12, y1: c.y + 4 });
+    const free = (b) => b.x0 >= 4 && b.x1 <= W - 4 && !occupied.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+    const placeLabel = (parts, cands) => {
+      const w = parts.map((p) => p.text).join('').length * 6.6 + 4;
+      const c = cands.find((k) => free(box(k, w))) || cands[0];
+      occupied.push(box(c, w)); labels.push({ c, parts });
+    };
+    edges.forEach((e) => {
+      const a = pos[e.from], b = pos[e.to]; if (!a || !b) return;
+      const x1 = a.x + nodeW / 2, y1 = a.y, x2 = b.x - nodeW / 2 - 2, y2 = b.y, same = y1 === y2;
+      const future = b.d.status === 'planned' || b.d.status === 'idea';
+      const path = same ? `M${x1},${y1} L${x2},${y2}` : `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
+      eg.append('path').attr('d', path).attr('fill', 'none').attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', future ? '4 4' : null).attr('marker-end', 'url(#lg-arrow)');
+      const mx = (x1 + x2) / 2, hasD = e.delta != null && e.delta !== '', v = Number(e.delta);
+      const good = CFG.higherIsBetter ? v >= 0 : v <= 0, dtxt = hasD ? (v >= 0 ? '+' : '−') + fmt(Math.abs(v)) : '';
+      const up = y1 - nodeH / 2 - 10, down = y1 + nodeH / 2 + 18, cls = good ? 'lg-up' : 'lg-down';
+      if (same) {   // same row: change above the boxes (two heights, so neighbours never touch), delta below
+        if (e.change) placeLabel([{ text: e.change }], [{ x: mx, y: up - (depth[e.from] % 2) * 15, a: 'middle' }, { x: mx, y: up - ((depth[e.from] + 1) % 2) * 15, a: 'middle' }, { x: mx, y: up - 30, a: 'middle' }]);
+        if (hasD) placeLabel([{ text: dtxt, cls }], [{ x: mx, y: down, a: 'middle' }, { x: mx, y: down + 15, a: 'middle' }]);
+      } else if (e.change || hasD) {   // another lane or row: one label "change +delta" at the first free spot near the arrow
+        const parts = (e.change ? [{ text: e.change + (hasD ? ' ' : '') }] : []).concat(hasD ? [{ text: dtxt, cls }] : []);
+        const t2 = y2 - nodeH / 2 - 8, b2 = y2 + nodeH / 2 + 16, t1 = y1 - nodeH / 2 - 8, b1 = y1 + nodeH / 2 + 16;
+        placeLabel(parts, [{ x: x2 + 2, y: t2, a: 'end' }, { x: mx, y: (y1 + y2) / 2 - 6, a: 'middle' }, { x: x2 + 2, y: b2, a: 'end' },
+          { x: x1 + 4, y: t1, a: 'start' }, { x: x1 + 4, y: b1, a: 'start' }, { x: x2 + 2, y: t2 - 15, a: 'end' }, { x: x2 + 2, y: b2 + 15, a: 'end' }]);
+      }
+    });
+    const ng = svg.append('g').selectAll('g').data(Object.values(pos)).join('g').attr('class', 'lg-node')
+      .attr('transform', (p) => `translate(${p.x - nodeW / 2},${p.y - nodeH / 2})`)
+      .attr('tabindex', 0).attr('role', 'button').attr('aria-label', (p) => p.d.id + ', ' + (p.d.title || '') + ', ' + p.d.status);
+    ng.append('rect').attr('class', 'lg-box').attr('width', nodeW).attr('height', nodeH).attr('rx', 8)
+      .attr('fill', 'var(--color-panel)').attr('stroke', (p) => stroke(p.d.status))
+      .attr('stroke-width', (p) => (p.d.id === window.lgSel ? 3 : 1.75)).attr('stroke-dasharray', (p) => dashOf(p.d.status));
+    ng.filter((p) => p.d.id === best).append('rect').attr('x', 0).attr('y', nodeH - 5).attr('width', nodeW).attr('height', 5)
+      .attr('rx', 2.5).attr('fill', dash.colors[0]);
+    ng.append('text').attr('class', 'lg-nid').attr('x', 10).attr('y', 19).text((p) => p.d.id + (p.d.id === best ? ' · best' : ''));
+    ng.append('text').attr('class', 'lg-nval').attr('x', 10).attr('y', 39)
+      .text((p) => (isNaN(num(p.d[CFG.metric])) ? ({ planned: 'designed', idea: 'idea' }[p.d.status] || '') : fmt(num(p.d[CFG.metric]))));
+    const lab = svg.append('g').attr('pointer-events', 'none');
+    labels.forEach(({ c, parts }) => {
+      const t = lab.append('text').attr('class', 'lg-halo').attr('x', c.x).attr('y', c.y).attr('text-anchor', c.a);
+      parts.forEach((p) => t.append('tspan').attr('class', p.cls || null).text(p.text));
+    });
+    const pick = (p) => { window.lgSel = p.d.id; drawGraph(); drawDetail(); };
+    ng.on('click', (evt, p) => pick(p))
+      .on('keydown', (evt, p) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); pick(p); } })
+      .on('mousemove', (evt, p) => showTip(card, evt, p.d.id + ' · ' + p.d.status, [p.d.title, p.d.finding]))
+      .on('mouseleave', () => hideTip(card));
+  }
+
+  dash.onData(() => { drawKey(); drawGraph(); drawDetail(); });
+})();
+</script>
+
+</body>
+</html>

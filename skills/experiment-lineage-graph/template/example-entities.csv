@@ -1,5 +1,13 @@
 id,type,label,description
-T-fewshot,technique,Few-shot examples,Labelled examples shown in the prompt
-T-retrieval,technique,Retrieval,Examples picked by similarity
-T-clean,technique,Label cleaning,Relabel noisy training rows
-M-a,model,Model A,The base model used throughout
+T-tfidf,technique,TF-IDF features,Bag of character and word n-grams
+T-finetune,technique,Fine-tuning,Train all weights on the labelled reviews
+T-augment,technique,Back-translation,Paraphrase training reviews via a second language
+T-smooth,technique,Label smoothing,Soften one-hot targets by 0.1
+T-prompt,technique,Prompting,Instructions and label definitions in the prompt
+T-retrieval,technique,Example retrieval,Pick the most similar labelled reviews as examples
+T-ensemble,technique,Ensembling,Average calibrated probabilities of several models
+T-distil,technique,Distillation,Train the encoder on LLM soft labels
+M-linear,model,Linear model,Logistic regression
+M-small,model,Small encoder,66M-parameter encoder
+M-large,model,Large encoder,435M-parameter encoder
+M-llm,model,LLM 8B,8B-parameter instruction-tuned LLM

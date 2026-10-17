@@ -1,5 +1,12 @@
 from,to,change
-EXP-001,EXP-002,+ few-shot examples
-EXP-002,EXP-003,+ retrieval
-EXP-003,EXP-004,clean labels
-EXP-004,EXP-005,
+EXP-01,EXP-02,fine-tune an encoder
+EXP-02,EXP-03,+ augmentation
+EXP-03,EXP-04,longer context
+EXP-03,EXP-05,larger encoder
+EXP-05,EXP-06,+ label smoothing
+EXP-01,EXP-07,zero-shot LLM
+EXP-07,EXP-08,+ few-shot examples
+EXP-06,EXP-09,ensemble
+EXP-08,EXP-09,
+EXP-06,EXP-10,distil LLM labels
+EXP-09,EXP-11,clean labels
