@@ -1,6 +1,6 @@
 {
   "name": "experiment-lineage-graph",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "displayName": "Experiment lineage graph",
   "description": "Turn a project's experiments into an interactive graph artifact: experiments as nodes with their metric, shared techniques and models as linked nodes, parent-to-child arrows with the metric delta, click to select a node with all its connections.",
   "author": {

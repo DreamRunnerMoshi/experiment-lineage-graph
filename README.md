@@ -10,6 +10,10 @@ A Claude Code plugin with one skill. It turns a project's experiments into an in
 
 A second layout draws the same data left to right in one lane per pipeline stage, for strict timelines.
 
+**[Try the live demo](https://dreamrunnermoshi.github.io/experiment-lineage-graph/)** ([lane layout](https://dreamrunnermoshi.github.io/experiment-lineage-graph/examples/demo-lanes.html)).
+
+![Hovering, selecting an experiment, selecting a technique, clearing](docs/screenshots/demo.gif)
+
 ![Network layout: experiments with their Macro-F1, shared techniques and models, and parent-to-child deltas](docs/screenshots/network.png)
 
 Click a node to select it with everything it connects to. Here the best result, EXP-09, is selected: the parents it builds on, the ensembling technique and the two models it combines stay in focus.
@@ -26,7 +30,7 @@ The lane layout puts each pipeline stage in its own lane; siblings stack, and ev
 
 The example data in the screenshots is fictional.
 
-Open [`examples/demo.html`](examples/demo.html) (network) or [`examples/demo-lanes.html`](examples/demo-lanes.html) (lanes) in a browser to try it on the example project. They load d3 from cdnjs and fonts from Google Fonts.
+The [live demo](https://dreamrunnermoshi.github.io/experiment-lineage-graph/) is [`examples/demo.html`](examples/demo.html) served by GitHub Pages; open it or [`examples/demo-lanes.html`](examples/demo-lanes.html) locally to try it offline. They load d3 from cdnjs and fonts from Google Fonts.
 
 ## Install
 
